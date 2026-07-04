@@ -654,15 +654,13 @@ function attackSelectedTarget(current = state) {
   return true;
 }
 
-function abilitiesForCurrent(current) {
-  if (Array.isArray(current.abilities) && current.abilities.length > 0) {
+function abilitiesForUnit(unit, current = state) {
+  if (!unit) return [];
+  if (Array.isArray(current.abilities) && current.abilities.length > 0 && unit.team === "player") {
     return current.abilities;
   }
 
-  const selected = selectedPlayerUnit(current);
-  if (!selected) return [];
-
-  switch (selected.job) {
+  switch (unit.job) {
     case "Ashigaru":
       return [{ id: 0, name: "押し込み", range: 1, cost: 2 }];
     case "Yumi":
@@ -1476,8 +1474,17 @@ function safeRender() {
 }
 
 function renderAbilityList(current) {
-  const abilities = abilitiesForCurrent(current);
+  const unit = selectedUnitById(current) ?? selectedPlayerUnit(current);
+  const abilities = abilitiesForUnit(unit, current);
   abilityList.innerHTML = "";
+
+  if (!unit) {
+    const empty = document.createElement("div");
+    empty.className = "statusLine";
+    empty.textContent = "ユニットを選択してください";
+    abilityList.appendChild(empty);
+    return;
+  }
 
   if (abilities.length === 0) {
     const empty = document.createElement("div");
@@ -1491,8 +1498,12 @@ function renderAbilityList(current) {
     const button = document.createElement("button");
     button.className = "abilityButton";
     button.type = "button";
+    if (unit.team !== "player") {
+      button.disabled = true;
+    }
     button.innerHTML = `<strong>${ability.name}</strong><small>射程 ${ability.range} / 消費 ${ability.cost}</small>`;
     button.addEventListener("click", () => {
+      if (unit.team !== "player") return;
       debugLog("ability button click", { id: ability.id, name: ability.name });
       if (bridge.useWasm && bridge.instance && typeof bridge.instance.use_ability === "function") {
         bridge.instance.use_ability(ability.id | 0);
