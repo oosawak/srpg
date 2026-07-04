@@ -1596,8 +1596,40 @@ function renderUnitPanel(current) {
 
     const enemySummary = document.createElement("div");
     enemySummary.className = "unitInfoBody";
-    enemySummary.textContent = `敵軍 / HP ${enemyUnit.hp}/${enemyUnit.maxHp} / 位置 ${enemyUnit.x}, ${enemyUnit.y}${canPlayerAttackTarget(current, enemyUnit) ? " / 攻撃可能" : " / 攻撃不可"}`;
+    enemySummary.textContent = `敵軍 / HP ${enemyUnit.hp}/${enemyUnit.maxHp} / 移動 ${enemyUnit.mov} / 射程 ${enemyUnit.range}`;
     enemyUnitInfo.appendChild(enemySummary);
+
+    const enemyHpWrap = document.createElement("div");
+    enemyHpWrap.className = "unitHpWrap";
+    const enemyHpBar = document.createElement("div");
+    enemyHpBar.className = "unitHpBar";
+    const enemyHpFill = document.createElement("div");
+    enemyHpFill.className = "unitHpFill";
+    enemyHpFill.style.width = `${Math.max(0, Math.min(100, (enemyUnit.hp / enemyUnit.maxHp) * 100))}%`;
+    enemyHpBar.appendChild(enemyHpFill);
+    const enemyHpLabel = document.createElement("div");
+    enemyHpLabel.className = "unitHpLabel";
+    enemyHpLabel.textContent = `残HP ${enemyUnit.hp}/${enemyUnit.maxHp}`;
+    enemyHpWrap.appendChild(enemyHpBar);
+    enemyHpWrap.appendChild(enemyHpLabel);
+    enemyUnitInfo.appendChild(enemyHpWrap);
+
+    const enemyCoords = document.createElement("div");
+    enemyCoords.className = "unitInfoBody";
+    enemyCoords.textContent = `位置 ${enemyUnit.x}, ${enemyUnit.y}${canPlayerAttackTarget(current, enemyUnit) ? " / 攻撃可能" : " / 攻撃不可"}`;
+    enemyUnitInfo.appendChild(enemyCoords);
+
+    if (tile) {
+      const enemyTileTitle = document.createElement("div");
+      enemyTileTitle.className = "unitInfoTitle";
+      enemyTileTitle.textContent = "タイル";
+      enemyUnitInfo.appendChild(enemyTileTitle);
+
+      const enemyTileSummary = document.createElement("div");
+      enemyTileSummary.className = "unitInfoBody";
+      enemyTileSummary.textContent = tileSummary(tile);
+      enemyUnitInfo.appendChild(enemyTileSummary);
+    }
   }
 
   if (!playerUnit) {
