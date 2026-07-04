@@ -234,9 +234,9 @@ canvas {
   margin-top: 8px;
 }
 
-.unitCardOverlay {
+.unitCardOverlay,
+.enemyCardOverlay {
   position: absolute;
-  left: 16px;
   bottom: 16px;
   z-index: 2;
   width: min(220px, calc(100% - 32px));
@@ -244,23 +244,15 @@ canvas {
   background: rgba(10, 16, 22, 0.82);
   backdrop-filter: blur(12px);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+}
+
+.unitCardOverlay {
+  left: 16px;
 }
 
 .enemyCardOverlay {
   position: absolute;
   right: 16px;
-  bottom: 16px;
-  z-index: 2;
-  width: min(220px, calc(100% - 32px));
-  margin-top: 0;
-  background: rgba(10, 16, 22, 0.82);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
-}
-
-.enemyCardOverlay h3 {
-  margin-bottom: 6px;
-  font-size: 12px;
 }
 
 .abilityCardOverlay {
@@ -288,7 +280,8 @@ canvas {
   padding: 10px 12px;
 }
 
-.unitCardOverlay h3 {
+.unitCardOverlay h3,
+.enemyCardOverlay h3 {
   margin-bottom: 6px;
   font-size: 12px;
 }
@@ -334,22 +327,27 @@ canvas {
   color: var(--text);
 }
 
-.unitCardOverlay .unitInfoTitle {
+.unitCardOverlay .unitInfoTitle,
+.enemyCardOverlay .unitInfoTitle {
   font-size: 12px;
 }
 
 .unitCardOverlay .unitInfoBody,
-.unitCardOverlay .statusLine {
+.unitCardOverlay .statusLine,
+.enemyCardOverlay .unitInfoBody,
+.enemyCardOverlay .statusLine {
   font-size: 10px;
   line-height: 1.35;
 }
 
-.unitCardOverlay .unitActions {
+.unitCardOverlay .unitActions,
+.enemyCardOverlay .unitActions {
   gap: 6px;
   margin-top: 8px;
 }
 
-.unitCardOverlay button {
+.unitCardOverlay button,
+.enemyCardOverlay button {
   padding: 7px 10px;
   font-size: 11px;
   flex: 1 1 72px;
@@ -528,10 +526,8 @@ dd {
     border-radius: 18px;
   }
 
-  .unitCardOverlay {
-    position: absolute;
-    left: 10px;
-    right: auto;
+  .unitCardOverlay,
+  .enemyCardOverlay {
     bottom: 10px;
     width: min(240px, calc(100% - 20px));
     max-width: 240px;
@@ -540,14 +536,14 @@ dd {
     padding: 8px 9px;
   }
 
+  .unitCardOverlay {
+    left: 10px;
+    right: auto;
+  }
+
   .enemyCardOverlay {
     right: 10px;
-    bottom: 10px;
-    width: min(240px, calc(100% - 20px));
-    max-width: 240px;
-    max-height: 24vh;
-    overflow: auto;
-    padding: 8px 9px;
+    left: auto;
   }
 
   .abilityCardOverlay {
@@ -575,17 +571,21 @@ dd {
     height: min(82vh, 108vw);
   }
 
-  .unitCardOverlay h3 {
+  .unitCardOverlay h3,
+  .enemyCardOverlay h3 {
     font-size: 10px;
     margin-bottom: 4px;
   }
 
-  .unitCardOverlay .unitInfoTitle {
+  .unitCardOverlay .unitInfoTitle,
+  .enemyCardOverlay .unitInfoTitle {
     font-size: 10px;
   }
 
   .unitCardOverlay .unitInfoBody,
-  .unitCardOverlay .statusLine {
+  .unitCardOverlay .statusLine,
+  .enemyCardOverlay .unitInfoBody,
+  .enemyCardOverlay .statusLine {
     font-size: 8px;
     line-height: 1.15;
     white-space: nowrap;
@@ -593,7 +593,8 @@ dd {
     text-overflow: ellipsis;
   }
 
-  .unitCardOverlay button {
+  .unitCardOverlay button,
+  .enemyCardOverlay button {
     padding: 5px 7px;
     font-size: 9px;
   }
