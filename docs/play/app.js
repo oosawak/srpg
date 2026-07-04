@@ -1680,11 +1680,11 @@ function overlaysForCurrentState(current) {
   const move = new Set();
   const attack = new Set();
   const selected = selectedPlayerUnit(current);
-  if (!selected || current.phase !== "player" || !isMoveMode(current)) {
+  if (!selected || current.phase !== "player") {
     return { move, attack };
   }
 
-  if (!selected.moved) {
+  if (isMoveMode(current) && !selected.moved) {
     const reachable = reachableTiles(selected, current);
     for (const key of reachable.keys()) {
       if (key !== `${selected.x},${selected.y}`) move.add(key);
