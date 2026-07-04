@@ -267,11 +267,11 @@ canvas {
 }
 
 .unitPanelClose {
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border-radius: 999px;
-  font-size: 16px;
+  font-size: 12px;
   line-height: 1;
   box-shadow: none;
 }

@@ -59,7 +59,7 @@ const gestureState = {
 
 const uiState = {
   zoom: loadSavedZoom(),
-  unitPanelHidden: false,
+  unitPanelHidden: true,
 };
 
 const state = createInitialState();
@@ -123,6 +123,10 @@ function makeUnit(id, clan, job, x, y, color, team, mov, range, hp, atk, leader 
 function resetGame() {
   const fresh = createInitialState();
   Object.assign(state, fresh);
+  uiState.unitPanelHidden = true;
+}
+
+function showUnitPanel() {
   uiState.unitPanelHidden = false;
 }
 
@@ -915,14 +919,14 @@ function handlePlayerClick(tile, current) {
     state.interactionMode = null;
     state.selectedTile = { x: tile.x, y: tile.y };
     state.message = `${clickedUnit.job} を選択`;
-    uiState.unitPanelHidden = false;
+    showUnitPanel();
     return;
   }
 
   if (clickedUnit && clickedUnit.team === "enemy") {
     const sameTile = Boolean(current.selectedTile && current.selectedTile.x === tile.x && current.selectedTile.y === tile.y);
     state.selectedTile = { x: tile.x, y: tile.y };
-    uiState.unitPanelHidden = false;
+    showUnitPanel();
     if (selected && sameTile && canPlayerAttackTarget(current, clickedUnit)) {
       attackUnit(selected, clickedUnit);
       state.moveOrigin = null;
@@ -938,7 +942,7 @@ function handlePlayerClick(tile, current) {
   if (!isMoveMode(current)) {
     state.selectedTile = { x: tile.x, y: tile.y };
     state.message = "移動は『移動』ボタンから開始してください";
-    uiState.unitPanelHidden = false;
+    showUnitPanel();
     return;
   }
 
@@ -952,13 +956,13 @@ function handlePlayerClick(tile, current) {
     state.selectedUnitId = selected.id;
     state.interactionMode = null;
     state.selectedTile = { x: tile.x, y: tile.y };
-    uiState.unitPanelHidden = false;
+    showUnitPanel();
     return;
   }
 
   state.selectedTile = { x: tile.x, y: tile.y };
   state.message = "移動先を選択してください";
-  uiState.unitPanelHidden = false;
+  showUnitPanel();
 }
 
 function handleCanvasPoint(point, current, meta = {}) {
@@ -981,6 +985,7 @@ function handleCanvasPoint(point, current, meta = {}) {
   if (hitUnit) {
     debugLog("canvas hit unit", { unitId: hitUnit.id, tileX: hitUnit.tileX, tileY: hitUnit.tileY });
     if (meta.longPress && hitUnit.unit.team === "player" && current.phase === "player") {
+      showUnitPanel();
       if (bridge.useWasm && bridge.instance) {
         bridge.instance.click_tile(hitUnit.tileX, hitUnit.tileY);
         if (typeof bridge.instance.begin_move === "function") {
@@ -999,6 +1004,7 @@ function handleCanvasPoint(point, current, meta = {}) {
     }
 
     if (bridge.useWasm && bridge.instance) {
+      showUnitPanel();
       bridge.instance.click_tile(hitUnit.tileX, hitUnit.tileY);
       debugLog("canvas forwarded unit click to wasm");
       safeRender();
@@ -1026,6 +1032,7 @@ function handleCanvasPoint(point, current, meta = {}) {
   }
   debugLog("canvas hit tile", { x: tile.x, y: tile.y, terrain: tile.terrain });
   if (bridge.useWasm && bridge.instance) {
+    showUnitPanel();
     bridge.instance.click_tile(tile.x, tile.y);
     debugLog("canvas forwarded tile click to wasm");
     safeRender();
