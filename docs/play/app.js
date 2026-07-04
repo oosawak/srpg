@@ -66,7 +66,9 @@ const DEBUG = true;
 const animation = {
   active: false,
   startedAt: 0,
-  duration: 320,
+  duration: 560,
+  sequence: [],
+  currentIndex: 0,
   unitPaths: new Map(),
   rafId: 0,
   onComplete: null,
@@ -336,7 +338,7 @@ function snapshotState(current) {
 }
 
 function startUnitAnimation(fromState, toState, onComplete = null) {
-  const unitPaths = new Map();
+  const sequence = [];
   for (const unit of toState.units) {
     const prev = fromState.units.find((candidate) => candidate.id === unit.id);
     if (!prev || (prev.x === unit.x && prev.y === unit.y)) continue;
@@ -345,15 +347,18 @@ function startUnitAnimation(fromState, toState, onComplete = null) {
     const toTile = tileAt(toState.map, unit.x, unit.y);
     if (!fromTile || !toTile) continue;
 
-    unitPaths.set(unit.id, {
+    sequence.push({
+      unitId: unit.id,
       from: tileToScreen(fromTile, fromState),
       to: tileToScreen(toTile, toState),
     });
   }
 
-  if (unitPaths.size === 0) {
+  if (sequence.length === 0) {
     animation.active = false;
     animation.unitPaths = new Map();
+    animation.sequence = [];
+    animation.currentIndex = 0;
     animation.onComplete = null;
     if (animation.rafId) {
       cancelAnimationFrame(animation.rafId);
@@ -364,10 +369,12 @@ function startUnitAnimation(fromState, toState, onComplete = null) {
 
   animation.active = true;
   animation.startedAt = performance.now();
-  animation.unitPaths = unitPaths;
+  animation.sequence = sequence;
+  animation.currentIndex = 0;
+  animation.unitPaths = new Map([[sequence[0].unitId, { from: sequence[0].from, to: sequence[0].to }]]);
   animation.onComplete = onComplete;
   debugLog("animation started", {
-    movedUnits: [...unitPaths.keys()],
+    movedUnits: sequence.map((step) => step.unitId),
   });
   if (!animation.rafId) {
     animation.rafId = requestAnimationFrame(function animateFrame() {
@@ -387,12 +394,23 @@ function easeOutCubic(t) {
 }
 
 function animatedUnitPosition(unit, current, t) {
-  const path = animation.unitPaths.get(unit.id);
-  if (!path) return null;
+  if (!animation.active || animation.sequence.length === 0) return null;
+
+  const stepIndex = animation.sequence.findIndex((step) => step.unitId === unit.id);
+  if (stepIndex < 0) return null;
+
+  const step = animation.sequence[stepIndex];
+  if (stepIndex < animation.currentIndex) {
+    return { x: step.to.x, y: step.to.y, size: TILE_SIZE };
+  }
+  if (stepIndex > animation.currentIndex) {
+    return { x: step.from.x, y: step.from.y, size: TILE_SIZE };
+  }
 
   return {
-    x: path.from.x + (path.to.x - path.from.x) * t,
-    y: path.from.y + (path.to.y - path.from.y) * t,
+    x: step.from.x + (step.to.x - step.from.x) * t,
+    y: step.from.y + (step.to.y - step.from.y) * t,
+    size: step.from.size ?? TILE_SIZE,
   };
 }
 
@@ -402,14 +420,25 @@ function animationProgress() {
   const elapsed = performance.now() - animation.startedAt;
   const t = Math.max(0, Math.min(1, elapsed / animation.duration));
   if (t >= 1) {
+    if (animation.currentIndex < animation.sequence.length - 1) {
+      animation.currentIndex += 1;
+      animation.startedAt = performance.now();
+      const step = animation.sequence[animation.currentIndex];
+      animation.unitPaths = new Map([[step.unitId, { from: step.from, to: step.to }]]);
+      return 0;
+    }
+
     animation.active = false;
     const onComplete = animation.onComplete;
+    animation.sequence = [];
+    animation.currentIndex = 0;
     animation.unitPaths = new Map();
     animation.onComplete = null;
     debugLog("animation complete");
     if (typeof onComplete === "function") {
       queueMicrotask(onComplete);
     }
+    return 1;
   }
   return easeOutCubic(t);
 }
@@ -925,6 +954,10 @@ function handlePlayerClick(tile, current) {
 }
 
 function handleCanvasPoint(point, current, meta = {}) {
+  if (animation.active) {
+    debugLog("canvas input ignored during enemy animation");
+    return;
+  }
   const label = meta.longPress ? "長押し" : meta.source === "tap" ? "タップ" : "クリック";
   markInput(`${label} on canvas`);
   debugLog("canvas input", {
@@ -1301,19 +1334,12 @@ function drawUnit(unit, current, progress = 1) {
   const tile = tileAt(current.map, unit.x, unit.y);
   if (!tile) return;
 
-  const path = animation.active ? animation.unitPaths.get(unit.id) : null;
-  const pos = path
-    ? {
-        x: path.from.x + (path.to.x - path.from.x) * progress,
-        y: path.from.y + (path.to.y - path.from.y) * progress,
-        size: TILE_SIZE,
-      }
-    : tileToScreen(tile, current);
+  const animatedPos = animatedUnitPosition(unit, current, progress);
+  const pos = animatedPos ?? tileToScreen(tile, current);
   const zoom = pos.size / TILE_SIZE;
   const x = current.viewMode === "topdown" ? pos.x + pos.size / 2 - 1 : pos.x + pos.size / 2;
-  const y = path
-    ? pos.y + 11 * zoom
-    : current.viewMode === "topdown"
+  const y =
+    current.viewMode === "topdown"
       ? pos.y + 14 * zoom - renderHeight(tile) * 1.5 * zoom
       : pos.y + 11 * zoom;
   const radius = (current.viewMode === "topdown" ? 12 : 10) * zoom;
@@ -1843,6 +1869,10 @@ function cancelMoveSelection() {
 }
 
 function runTurnEnd() {
+  if (animation.active) {
+    debugLog("endTurn ignored during animation");
+    return;
+  }
   debugLog("endTurn requested", { wasm: bridge.useWasm, phase: getCurrentState().phase });
   if (bridge.useWasm && bridge.instance) {
     const before = snapshotState(getCurrentState());
