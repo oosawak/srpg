@@ -1,7 +1,6 @@
 const canvas = document.getElementById("mapCanvas");
 const ctx = canvas.getContext("2d");
 const toggleViewButton = document.getElementById("toggleView");
-const toggleBoxButton = document.getElementById("toggleBox");
 const zoomOutButton = document.getElementById("zoomOut");
 const zoomResetButton = document.getElementById("zoomReset");
 const zoomInButton = document.getElementById("zoomIn");
@@ -58,7 +57,6 @@ const gestureState = {
 };
 
 const uiState = {
-  boxMode: "open",
   zoom: loadSavedZoom(),
 };
 
@@ -1169,7 +1167,7 @@ function drawIsoTile(tile, pos, current, overlays) {
   const leftShade = shadeColor(base, -0.24);
   const rightShade = shadeColor(base, -0.14);
   const topShade = shadeColor(base, 0.06);
-  const frontShade = uiState.boxMode === "closed" ? shadeColor(base, -0.34) : shadeColor(base, -0.18);
+  const frontShade = shadeColor(base, -0.22);
   const zoom = pos.size / TILE_SIZE;
   const heightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
   const overlay = overlayColor(key, current, overlays);
@@ -1182,6 +1180,17 @@ function drawIsoTile(tile, pos, current, overlays) {
   ctx.lineTo(polygon[3].x, polygon[3].y + heightPx);
   ctx.closePath();
   ctx.fill();
+
+  if (tile.height > 0) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+    ctx.beginPath();
+    ctx.moveTo(polygon[3].x, polygon[3].y + heightPx);
+    ctx.lineTo(polygon[2].x, polygon[2].y + heightPx);
+    ctx.lineTo(polygon[2].x + 3 * zoom, polygon[2].y + heightPx + 5 * zoom);
+    ctx.lineTo(polygon[3].x - 3 * zoom, polygon[3].y + heightPx + 5 * zoom);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   ctx.fillStyle = leftShade;
   ctx.beginPath();
@@ -1347,9 +1356,6 @@ function drawHud(current) {
   }
   toggleViewButton.textContent =
     current.viewMode === "isometric" ? "切替: 斜め見下ろし" : "切替: 真上 2D";
-  if (toggleBoxButton) {
-    toggleBoxButton.textContent = uiState.boxMode === "closed" ? "箱: 閉じる" : "箱: 開く";
-  }
   statusLine.textContent = bridge.useWasm ? `wasm bridge connected / ${current.message}` : current.message;
   endTurnButton.disabled = !current.isPlayerTurn && current.phase !== "player";
   renderAbilityList(current);
@@ -1731,13 +1737,6 @@ function toggleViewMode() {
   safeRender();
 }
 
-function toggleBoxMode() {
-  debugLog("toggleBox requested", { boxMode: uiState.boxMode });
-  uiState.boxMode = uiState.boxMode === "open" ? "closed" : "open";
-  state.message = uiState.boxMode === "open" ? "箱を開いた表示" : "箱を閉じた表示";
-  safeRender();
-}
-
 function zoomIn() {
   adjustZoom(ZOOM_STEP);
 }
@@ -1810,7 +1809,6 @@ function runTurnEnd() {
 }
 
 toggleViewButton.addEventListener("click", toggleViewMode);
-if (toggleBoxButton) toggleBoxButton.addEventListener("click", toggleBoxMode);
 endTurnButton.addEventListener("click", runTurnEnd);
 resetViewButton.addEventListener("click", () => {
   try {
@@ -1930,7 +1928,6 @@ connectBridge()
 
 window.srpgUi = {
   toggleView: toggleViewMode,
-  toggleBox: toggleBoxMode,
   zoomIn,
   zoomOut,
   zoomReset,
