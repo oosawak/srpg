@@ -1194,11 +1194,11 @@ function drawHud(current) {
 function renderUnitPanel(current) {
   if (!unitInfo || !unitActions) return;
 
-  const unit = selectedPlayerUnit(current);
   const tile = selectedTileAt(current);
   const tileUnit = selectedTileUnit(current);
+  const unit = tileUnit && tileUnit.team === "enemy" ? tileUnit : selectedPlayerUnit(current);
   if (unitCardOverlay) {
-    unitCardOverlay.classList.toggle("unitCardOverlayEnemy", Boolean(tileUnit && tileUnit.team === "enemy" && !unit));
+    unitCardOverlay.classList.toggle("unitCardOverlayEnemy", Boolean(unit && unit.team === "enemy"));
   }
   unitInfo.innerHTML = "";
   unitActions.innerHTML = "";
@@ -1246,19 +1246,19 @@ function renderUnitPanel(current) {
     unitInfo.appendChild(tileDetail);
   }
 
-  if (tileUnit && tileUnit.team === "enemy") {
+  if (unit && unit.team === "enemy") {
     const enemyTitle = document.createElement("div");
     enemyTitle.className = "unitInfoTitle";
-    enemyTitle.textContent = `${tileUnit.job}${tileUnit.leader ? " / 部隊長" : ""}`;
+    enemyTitle.textContent = `${unit.job}${unit.leader ? " / 部隊長" : ""}`;
     unitInfo.appendChild(enemyTitle);
 
     const enemySummary = document.createElement("div");
     enemySummary.className = "unitInfoBody";
-    enemySummary.textContent = `敵軍 / HP ${tileUnit.hp}/${tileUnit.maxHp} / 位置 ${tileUnit.x}, ${tileUnit.y}`;
+    enemySummary.textContent = `敵軍 / HP ${unit.hp}/${unit.maxHp} / 位置 ${unit.x}, ${unit.y}`;
     unitInfo.appendChild(enemySummary);
   }
 
-  if (tileUnit && tileUnit.team === "enemy" && unit && canPlayerAttackTarget(current, tileUnit)) {
+  if (unit && unit.team === "enemy" && canPlayerAttackTarget(current, unit)) {
     const attackButton = document.createElement("button");
     attackButton.type = "button";
     attackButton.className = "primary";
@@ -1274,10 +1274,10 @@ function renderUnitPanel(current) {
     unitActions.appendChild(attackButton);
   }
 
-  if (tileUnit && tileUnit.team === "enemy") {
+  if (unit && unit.team === "enemy") {
     const hint = document.createElement("div");
     hint.className = "statusLine";
-    hint.textContent = canPlayerAttackTarget(current, tileUnit) ? "攻撃可能です" : "射程外です";
+    hint.textContent = canPlayerAttackTarget(current, unit) ? "攻撃可能です" : "射程外です";
     unitActions.appendChild(hint);
   }
 
