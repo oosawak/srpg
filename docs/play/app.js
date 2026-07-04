@@ -1514,42 +1514,15 @@ function renderUnitPanel(current) {
 
   const tile = selectedTileAt(current);
   const tileUnit = selectedTileUnit(current);
-  const unit = tileUnit && tileUnit.team === "enemy" ? tileUnit : selectedPlayerUnit(current);
+  const playerUnit = selectedPlayerUnit(current);
+  const enemyUnit = tileUnit && tileUnit.team === "enemy" ? tileUnit : null;
   if (unitCardOverlay) {
-    unitCardOverlay.classList.toggle("unitCardOverlayEnemy", Boolean(unit && unit.team === "enemy"));
+    unitCardOverlay.classList.toggle("unitCardOverlayEnemy", Boolean(enemyUnit));
   }
   unitInfo.innerHTML = "";
   unitActions.innerHTML = "";
 
-  if (unit && unit.team === "enemy") {
-    const attackButton = document.createElement("button");
-    attackButton.type = "button";
-    attackButton.className = "primary";
-    const attackable = canPlayerAttackTarget(current, unit);
-    attackButton.textContent = "攻撃";
-    attackButton.disabled = !attackable;
-    attackButton.title = attackable ? "射程内の敵を攻撃します" : "攻撃不可です";
-    attackButton.addEventListener("click", () => {
-      if (!attackable) {
-        state.message = "攻撃不可です";
-        safeRender();
-        return;
-      }
-      state.selectedTile = { x: unit.x, y: unit.y };
-      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
-        if (typeof bridge.instance.click_tile === "function") {
-          bridge.instance.click_tile(unit.x, unit.y);
-        }
-        bridge.instance.attack_selected();
-        safeRender();
-        return;
-      }
-      attackEnemyTarget(unit, state);
-    });
-    unitInfo.appendChild(attackButton);
-  }
-
-  if (!unit) {
+  if (!playerUnit) {
     const empty = document.createElement("div");
     empty.className = "statusLine";
     empty.textContent = "ユニットをタップしてください";
@@ -1557,12 +1530,12 @@ function renderUnitPanel(current) {
   } else {
     const title = document.createElement("div");
     title.className = "unitInfoTitle";
-    title.textContent = `${unit.job}${unit.leader ? " / 部隊長" : ""}`;
+    title.textContent = `${playerUnit.job}${playerUnit.leader ? " / 部隊長" : ""}`;
     unitInfo.appendChild(title);
 
     const summary = document.createElement("div");
     summary.className = "unitInfoBody";
-    summary.textContent = `${unit.team === "player" ? "自軍" : "敵軍"} / HP ${unit.hp}/${unit.maxHp} / 移動 ${unit.mov} / 射程 ${unit.range}`;
+    summary.textContent = `自軍 / HP ${playerUnit.hp}/${playerUnit.maxHp} / 移動 ${playerUnit.mov} / 射程 ${playerUnit.range}`;
     unitInfo.appendChild(summary);
 
     const hpWrap = document.createElement("div");
@@ -1571,18 +1544,18 @@ function renderUnitPanel(current) {
     hpBar.className = "unitHpBar";
     const hpFill = document.createElement("div");
     hpFill.className = "unitHpFill";
-    hpFill.style.width = `${Math.max(0, Math.min(100, (unit.hp / unit.maxHp) * 100))}%`;
+    hpFill.style.width = `${Math.max(0, Math.min(100, (playerUnit.hp / playerUnit.maxHp) * 100))}%`;
     hpBar.appendChild(hpFill);
     const hpLabel = document.createElement("div");
     hpLabel.className = "unitHpLabel";
-    hpLabel.textContent = `残HP ${unit.hp}/${unit.maxHp}`;
+    hpLabel.textContent = `残HP ${playerUnit.hp}/${playerUnit.maxHp}`;
     hpWrap.appendChild(hpBar);
     hpWrap.appendChild(hpLabel);
     unitInfo.appendChild(hpWrap);
 
     const coords = document.createElement("div");
     coords.className = "unitInfoBody";
-    coords.textContent = `位置 ${unit.x}, ${unit.y}`;
+    coords.textContent = `位置 ${playerUnit.x}, ${playerUnit.y}`;
     unitInfo.appendChild(coords);
   }
 
@@ -1607,19 +1580,19 @@ function renderUnitPanel(current) {
     unitInfo.appendChild(tileDetail);
   }
 
-  if (unit && unit.team === "enemy") {
+  if (enemyUnit) {
     const enemyTitle = document.createElement("div");
     enemyTitle.className = "unitInfoTitle";
-    enemyTitle.textContent = `${unit.job}${unit.leader ? " / 部隊長" : ""}`;
+    enemyTitle.textContent = `${enemyUnit.job}${enemyUnit.leader ? " / 部隊長" : ""}`;
     unitInfo.appendChild(enemyTitle);
 
     const enemySummary = document.createElement("div");
     enemySummary.className = "unitInfoBody";
-    enemySummary.textContent = `敵軍 / HP ${unit.hp}/${unit.maxHp} / 位置 ${unit.x}, ${unit.y}${canPlayerAttackTarget(current, unit) ? " / 攻撃可能" : " / 攻撃不可"}`;
+    enemySummary.textContent = `敵軍 / HP ${enemyUnit.hp}/${enemyUnit.maxHp} / 位置 ${enemyUnit.x}, ${enemyUnit.y}${canPlayerAttackTarget(current, enemyUnit) ? " / 攻撃可能" : " / 攻撃不可"}`;
     unitInfo.appendChild(enemySummary);
   }
 
-  if (!unit || unit.team !== "player") {
+  if (!playerUnit) {
     return;
   }
 
@@ -1627,7 +1600,7 @@ function renderUnitPanel(current) {
   moveButton.type = "button";
   moveButton.className = "secondary";
   moveButton.textContent = isMoveMode(current) ? "移動選択中" : "移動";
-  moveButton.disabled = unit.moved || current.phase !== "player";
+  moveButton.disabled = playerUnit.moved || current.phase !== "player";
   moveButton.addEventListener("click", () => {
     if (bridge.useWasm && bridge.instance && typeof bridge.instance.begin_move === "function") {
       bridge.instance.begin_move();
@@ -1653,6 +1626,34 @@ function renderUnitPanel(current) {
     cancelMoveSelection();
   });
   unitActions.appendChild(cancelButton);
+
+  if (enemyUnit) {
+    const attackButton = document.createElement("button");
+    attackButton.type = "button";
+    attackButton.className = "primary";
+    const attackable = canPlayerAttackTarget(current, enemyUnit);
+    attackButton.textContent = "攻撃";
+    attackButton.disabled = !attackable;
+    attackButton.title = attackable ? "射程内の敵を攻撃します" : "攻撃不可です";
+    attackButton.addEventListener("click", () => {
+      if (!attackable) {
+        state.message = "攻撃不可です";
+        safeRender();
+        return;
+      }
+      state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
+      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
+        if (typeof bridge.instance.click_tile === "function") {
+          bridge.instance.click_tile(enemyUnit.x, enemyUnit.y);
+        }
+        bridge.instance.attack_selected();
+        safeRender();
+        return;
+      }
+      attackEnemyTarget(enemyUnit, state);
+    });
+    unitActions.appendChild(attackButton);
+  }
 }
 
 if (unitPanelClose) {
