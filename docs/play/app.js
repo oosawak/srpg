@@ -1532,7 +1532,7 @@ function renderUnitPanel(current) {
 
     const enemySummary = document.createElement("div");
     enemySummary.className = "unitInfoBody";
-    enemySummary.textContent = `敵軍 / HP ${unit.hp}/${unit.maxHp} / 位置 ${unit.x}, ${unit.y}`;
+    enemySummary.textContent = `敵軍 / HP ${unit.hp}/${unit.maxHp} / 位置 ${unit.x}, ${unit.y}${canPlayerAttackTarget(current, unit) ? " / 攻撃可能" : " / 射程外"}`;
     unitInfo.appendChild(enemySummary);
   }
 
@@ -1541,7 +1541,7 @@ function renderUnitPanel(current) {
     attackButton.type = "button";
     attackButton.className = "primary";
     const attackable = canPlayerAttackTarget(current, unit);
-    attackButton.textContent = attackable ? "攻撃" : "攻撃不可";
+    attackButton.textContent = attackable ? "攻撃" : "射程外";
     attackButton.disabled = !attackable;
     attackButton.addEventListener("click", () => {
       if (!attackable) {
@@ -1556,7 +1556,7 @@ function renderUnitPanel(current) {
       }
       attackSelectedTarget(state);
     });
-    unitActions.appendChild(attackButton);
+    unitActions.prepend(attackButton);
   }
 
   if (!unit) {
@@ -1777,6 +1777,56 @@ function drawMoveCostLabel(text, pos, current) {
   ctx.restore();
 }
 
+function drawAttackRangeLabel(text, pos, current) {
+  const center = tileCenter(pos, current);
+  const zoom = pos.size / TILE_SIZE;
+  const width = 18 * zoom;
+  const height = 14 * zoom;
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = "rgba(80, 8, 8, 0.58)";
+  ctx.strokeStyle = "rgba(255, 130, 130, 0.95)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  roundedRectPath(center.x - width / 2, center.y - height / 2, width, height, 5 * zoom);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255, 236, 236, 0.9)";
+  ctx.font = `800 ${Math.max(8, 10 * zoom)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, center.x, center.y + 0.2);
+  ctx.restore();
+}
+
+function enemyIsAttackable(current, unit) {
+  return Boolean(unit && unit.team === "enemy" && canPlayerAttackTarget(current, unit));
+}
+
+function drawEnemyAttackGlow(unit, current) {
+  if (!enemyIsAttackable(current, unit)) return;
+  const tile = tileAt(current.map, unit.x, unit.y);
+  if (!tile) return;
+  const pos = tileToScreen(tile, current);
+  const zoom = pos.size / TILE_SIZE;
+  const center =
+    current.viewMode === "topdown"
+      ? { x: pos.x + pos.size / 2 - 1, y: pos.y + pos.size / 2 }
+      : { x: pos.x + pos.size / 2, y: pos.y + pos.size * 0.24 };
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.strokeStyle = "rgba(255, 120, 120, 0.95)";
+  ctx.lineWidth = Math.max(2, 3 * zoom);
+  ctx.shadowColor = "rgba(255, 92, 92, 0.6)";
+  ctx.shadowBlur = 10 * zoom;
+  ctx.arc(center.x, center.y, (current.viewMode === "topdown" ? 15 : 13) * zoom, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function roundedRectPath(x, y, width, height, radius) {
   const r = Math.min(radius, width / 2, height / 2);
   ctx.moveTo(x + r, y);
@@ -1831,7 +1881,18 @@ function render() {
     drawMoveCostLabel(String(cost), pos, current);
   }
 
+  if (current.phase === "player") {
+    for (const key of overlays.attack) {
+      const [x, y] = key.split(",").map(Number);
+      const tile = tileAt(current.map, x, y);
+      if (!tile) continue;
+      const pos = tileToScreen(tile, current);
+      drawAttackRangeLabel("攻", pos, current);
+    }
+  }
+
   current.units.forEach((unit) => drawUnit(unit, current, progress));
+  current.units.forEach((unit) => drawEnemyAttackGlow(unit, current));
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
   ctx.font = "600 14px sans-serif";
