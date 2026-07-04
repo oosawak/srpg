@@ -259,6 +259,8 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  margin: 0 0 6px;
   gap: 8px;
 }
 
@@ -281,6 +283,12 @@ canvas {
   display: inline-block;
   flex: 0 0 auto;
   color: var(--muted);
+}
+
+.unitCardHeader .unitPanelClose {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0;
 }
 
 .unitPanelClose:hover {
