@@ -482,7 +482,7 @@ function tileToScreen(tile, current) {
   }
 
   const isoX = (tile.x - tile.y) * (size / 2);
-  const isoY = (tile.x + tile.y) * (size / 4) - tile.height * (size / 3);
+  const isoY = (tile.x + tile.y) * (size / 4) - tile.height * (size / 4);
   return {
     x: origin.x + isoX,
     y: origin.y + isoY,
