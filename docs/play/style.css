@@ -125,17 +125,107 @@ button.secondary {
 
 .canvasWrap {
   min-height: 720px;
+  position: relative;
 }
 
 canvas {
   width: 100%;
   height: auto;
   display: block;
+  cursor: pointer;
 }
 
 .panel {
   padding: 20px;
   background: linear-gradient(180deg, rgba(17, 26, 36, 0.96), rgba(9, 14, 20, 0.92));
+}
+
+.bootStatus {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(121, 209, 255, 0.35);
+  border-radius: 14px;
+  background: rgba(121, 209, 255, 0.08);
+  color: #bfe9ff;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.unitCard {
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.unitInfo {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.unitInfoTitle {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.unitInfoBody {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.unitActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.unitCardOverlay {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2;
+  width: min(220px, calc(100% - 32px));
+  margin-top: 0;
+  background: rgba(10, 16, 22, 0.82);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+}
+
+.unitCardOverlayEnemy {
+  left: auto;
+  right: 16px;
+}
+
+.unitCardOverlay h3 {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.unitCardOverlay .unitInfoTitle {
+  font-size: 12px;
+}
+
+.unitCardOverlay .unitInfoBody,
+.unitCardOverlay .statusLine {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.unitCardOverlay .unitActions {
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.unitCardOverlay button {
+  padding: 7px 10px;
+  font-size: 11px;
+  flex: 1 1 72px;
 }
 
 .stats {

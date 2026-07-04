@@ -29,6 +29,16 @@ async function loadWasm() {
     click_tile(x, y) {
       exports.srpg_click_tile(x | 0, y | 0);
     },
+    begin_move() {
+      if (typeof exports.srpg_begin_move === "function") {
+        exports.srpg_begin_move();
+      }
+    },
+    cancel_move() {
+      if (typeof exports.srpg_cancel_move === "function") {
+        exports.srpg_cancel_move();
+      }
+    },
     use_ability(index) {
       exports.srpg_use_ability(index | 0);
     },

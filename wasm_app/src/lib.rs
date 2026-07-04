@@ -19,6 +19,11 @@ enum Phase {
     Defeat,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum InteractionMode {
+    Move,
+}
+
 #[derive(Clone)]
 struct UnitState {
     id: UnitId,
@@ -49,6 +54,7 @@ struct GameState {
     turn_number: u32,
     phase: Phase,
     selected_unit_id: Option<UnitId>,
+    interaction_mode: Option<InteractionMode>,
     message: String,
     map: Map,
     units: Vec<UnitState>,
@@ -89,6 +95,22 @@ pub extern "C" fn srpg_end_turn() {
         if matches!(game.phase, Phase::Player) {
             game.end_player_turn();
         }
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn srpg_begin_move() {
+    with_game_mut(|game| {
+        game.begin_move_selection();
+        game.refresh_render();
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn srpg_cancel_move() {
+    with_game_mut(|game| {
+        game.cancel_move_selection();
+        game.refresh_render();
     });
 }
 
@@ -154,6 +176,7 @@ impl GameState {
             turn_number: 1,
             phase: Phase::Player,
             selected_unit_id: Some(1),
+            interaction_mode: None,
             message: "自軍の行動です".to_string(),
             map,
             units,
@@ -171,11 +194,12 @@ impl GameState {
         self.render_buffer.clear();
         let _ = write!(
             self.render_buffer,
-            "{{\"view_mode\":\"{}\",\"turn_number\":{},\"phase\":\"{}\",\"selected_unit_id\":{},\"message\":\"{}\",\"map\":{{\"width\":{},\"height\":{},\"tiles\":[",
+            "{{\"view_mode\":\"{}\",\"turn_number\":{},\"phase\":\"{}\",\"selected_unit_id\":{},\"interaction_mode\":{},\"message\":\"{}\",\"map\":{{\"width\":{},\"height\":{},\"tiles\":[",
             view_mode_name(summary.view_mode),
             summary.turn_number,
             summary.phase,
             opt_u32(summary.selected_unit_id),
+            opt_str(summary.interaction_mode),
             json_escape(&summary.message),
             summary.map_width,
             summary.map_height
@@ -248,7 +272,7 @@ impl GameState {
                 ability.cost
             );
         }
-        self.render_buffer.push_str("}");
+        self.render_buffer.push_str("]}");
     }
 
     fn selected_player_unit(&self) -> Option<&UnitState> {
@@ -270,6 +294,24 @@ impl GameState {
         self.selected_player_unit().map(|unit| (unit.x, unit.y))
     }
 
+    fn begin_move_selection(&mut self) {
+        let Some(unit_job) = self.selected_player_unit().map(|unit| unit.job) else {
+            self.message = "移動できる自軍ユニットを選択してください".to_string();
+            return;
+        };
+        if self.selected_player_unit().is_some_and(|unit| unit.moved) {
+            self.message = "そのユニットは移動済みです".to_string();
+            return;
+        }
+        self.interaction_mode = Some(InteractionMode::Move);
+        self.message = format!("{} の移動先を選択してください", job_label(unit_job));
+    }
+
+    fn cancel_move_selection(&mut self) {
+        self.interaction_mode = None;
+        self.message = "移動をキャンセル".to_string();
+    }
+
     fn unit_at(&self, x: i32, y: i32) -> Option<&UnitState> {
         self.units
             .iter()
@@ -282,68 +324,40 @@ impl GameState {
         }
 
         if let Some(unit) = self.unit_at(x, y) {
-            if unit.team == Team::Player {
-                let unit_id = unit.id;
-                let unit_job = unit.job;
-                self.selected_unit_id = Some(unit_id);
-                self.message = format!("{} を選択", job_label(unit_job));
-                return;
-            }
+            let unit_id = unit.id;
+            let unit_job = unit.job;
+            self.selected_unit_id = Some(unit_id);
+            self.interaction_mode = None;
+            self.message = format!("{} を選択", job_label(unit_job));
+            return;
         }
 
-        let selected_id = match self.selected_unit_id {
-            Some(id) => id,
-            None => return,
+        if !matches!(self.interaction_mode, Some(InteractionMode::Move)) {
+            self.message = "移動は『移動』ボタンから開始してください".to_string();
+            return;
+        }
+
+        let Some(selected_id) = self.selected_unit_id else {
+            return;
+        };
+        let Some(selected) = self.selected_player_unit() else {
+            self.message = "移動できる自軍ユニットを選択してください".to_string();
+            return;
         };
 
-        let move_tiles = self.reachable_tiles(self.selected_player_unit());
-        let attack_tiles = self.attack_tiles(self.selected_player_unit());
-
+        let move_tiles = self.reachable_tiles(Some(selected));
         if move_tiles.contains(&(x, y)) && self.unit_at(x, y).is_none() {
             if let Some(unit) = self.units.iter_mut().find(|unit| unit.id == selected_id) {
                 unit.x = x;
                 unit.y = y;
                 unit.moved = true;
+                self.interaction_mode = None;
                 self.message = format!("{} が {},{} へ移動", job_label(unit.job), x, y);
                 return;
             }
         }
 
-        if attack_tiles.contains(&(x, y)) {
-            let damage = self.attack_power(selected_id);
-            let target_name = self
-                .unit_at(x, y)
-                .map(|target| job_label(target.job).to_string())
-                .unwrap_or_else(|| "敵".to_string());
-            let attacker_name = {
-                let unit = match self.selected_player_unit_mut() {
-                    Some(unit) => unit,
-                    None => return,
-                };
-                unit.acted = true;
-                job_label(unit.job).to_string()
-            };
-
-            if let Some(target_idx) = self
-                .units
-                .iter()
-                .position(|unit| unit.hp > 0 && unit.x == x && unit.y == y && unit.team == Team::Enemy)
-            {
-                self.units[target_idx].hp = (self.units[target_idx].hp - damage).max(0);
-                self.message = format!("{} が {} に {} ダメージ", attacker_name, target_name, damage);
-                if self.units[target_idx].hp <= 0 {
-                    self.message.push_str(" / 撃破");
-                }
-                if self.enemy_units_alive() == 0 {
-                    self.phase = Phase::Victory;
-                    self.selected_unit_id = None;
-                    self.message = "勝利".to_string();
-                }
-            }
-            return;
-        }
-
-        self.message = "移動先または攻撃対象を選択してください".to_string();
+        self.message = "移動先を選択してください".to_string();
     }
 
     fn attack_power(&self, unit_id: UnitId) -> i32 {
@@ -374,6 +388,7 @@ impl GameState {
         }
         self.phase = Phase::Enemy;
         self.selected_unit_id = None;
+        self.interaction_mode = None;
         self.message = "敵の行動中".to_string();
         self.run_enemy_turn();
     }
@@ -407,16 +422,10 @@ impl GameState {
                 if next == (self.units[idx].x, self.units[idx].y) {
                     break;
                 }
-                if self
-                    .unit_at(next.0, next.1)
-                    .is_some_and(|unit| unit.team == Team::Enemy)
-                {
+                if self.unit_at(next.0, next.1).is_some() {
                     break;
                 }
-                if self
-                    .unit_at(next.0, next.1)
-                    .is_some_and(|unit| unit.team == Team::Player && (next != nearest))
-                {
+                if next == nearest {
                     break;
                 }
                 self.units[idx].x = next.0;
@@ -472,6 +481,7 @@ impl GameState {
             .iter()
             .find(|unit| unit.team == Team::Player && unit.hp > 0)
             .map(|unit| unit.id);
+        self.interaction_mode = None;
         self.message = "自軍の行動です".to_string();
     }
 
@@ -751,6 +761,7 @@ impl GameState {
             turn_number: self.turn_number,
             phase: phase_name(self.phase),
             selected_unit_id: self.selected_unit_id,
+            interaction_mode: self.interaction_mode,
             message: self.message.clone(),
             map_width: self.map.width,
             map_height: self.map.height,
@@ -797,6 +808,7 @@ struct BattleSummary {
     turn_number: u32,
     phase: &'static str,
     selected_unit_id: Option<UnitId>,
+    interaction_mode: Option<InteractionMode>,
     message: String,
     map_width: usize,
     map_height: usize,
@@ -922,6 +934,13 @@ fn opt_u32(value: Option<u32>) -> String {
     value
         .map(|value| value.to_string())
         .unwrap_or_else(|| "null".to_string())
+}
+
+fn opt_str(value: Option<InteractionMode>) -> &'static str {
+    match value {
+        Some(InteractionMode::Move) => "\"move\"",
+        None => "null",
+    }
 }
 
 fn opt_tile(value: Option<(i32, i32)>) -> String {

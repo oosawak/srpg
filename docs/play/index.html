@@ -13,23 +13,31 @@
           <p class="eyebrow">SRPG prototype</p>
           <h1>戦国タクティクス・マップビュー</h1>
           <p class="lede">
-            FFT 風の斜め見下ろしと、真上 2D を切り替えられる簡易デモです。
+            斜め見下ろしと、真上 2D を切り替えられる簡易デモです。
             現在は Rust 側の設計に合わせた静的プレビューとして動きます。
           </p>
         </div>
         <div class="toolbar">
-          <button id="toggleView" class="primary">切替: 斜め見下ろし</button>
-          <button id="endTurn" class="secondary">ターン終了</button>
-          <button id="resetView" class="secondary">初期化</button>
+          <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
+          <button id="toggleBox" class="secondary" onclick="window.srpgUi && window.srpgUi.toggleBox()">箱: 開く</button>
+          <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
+          <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
         </div>
       </section>
 
       <section class="board">
         <div class="canvasWrap">
+          <div class="unitCard unitCardOverlay">
+            <h3>ユニット情報</h3>
+            <div id="unitInfo" class="unitInfo">ユニットをクリックしてください</div>
+            <div id="unitActions" class="unitActions"></div>
+          </div>
           <canvas id="mapCanvas" width="960" height="720" aria-label="map view"></canvas>
         </div>
 
         <aside class="panel">
+          <div id="bootStatus" class="bootStatus">booting...</div>
+          <div id="inputProbe" class="bootStatus">input: none</div>
           <h2>状態</h2>
           <dl class="stats">
             <div><dt>表示</dt><dd id="viewName">isometric</dd></div>
