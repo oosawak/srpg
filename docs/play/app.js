@@ -897,6 +897,24 @@ function handleCanvasPoint(point, current, meta = {}) {
   const hitUnit = hitTestUnit(point, current);
   if (hitUnit) {
     debugLog("canvas hit unit", { unitId: hitUnit.id, tileX: hitUnit.tileX, tileY: hitUnit.tileY });
+    if (meta.longPress && hitUnit.unit.team === "player" && current.phase === "player") {
+      if (bridge.useWasm && bridge.instance) {
+        bridge.instance.click_tile(hitUnit.tileX, hitUnit.tileY);
+        if (typeof bridge.instance.begin_move === "function") {
+          bridge.instance.begin_move();
+        }
+        debugLog("canvas long press forwarded move mode to wasm");
+        safeRender();
+        return;
+      }
+
+      handlePlayerClick({ x: hitUnit.tileX, y: hitUnit.tileY }, state);
+      beginMoveSelection();
+      debugLog("canvas long press entered move mode locally");
+      safeRender();
+      return;
+    }
+
     if (bridge.useWasm && bridge.instance) {
       bridge.instance.click_tile(hitUnit.tileX, hitUnit.tileY);
       debugLog("canvas forwarded unit click to wasm");
