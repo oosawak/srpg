@@ -1279,6 +1279,7 @@ function renderUnitPanel(current) {
     hint.className = "statusLine";
     hint.textContent = canPlayerAttackTarget(current, unit) ? "攻撃可能です" : "射程外です";
     unitActions.appendChild(hint);
+    return;
   }
 
   if (!unit) {
