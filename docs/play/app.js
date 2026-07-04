@@ -1593,6 +1593,34 @@ function renderUnitPanel(current) {
   }
 
   if (enemyUnit) {
+    const attackButton = document.createElement("button");
+    attackButton.type = "button";
+    attackButton.className = "primary";
+    const attackable = canPlayerAttackTarget(current, enemyUnit);
+    attackButton.textContent = "攻撃";
+    attackButton.disabled = !attackable;
+    attackButton.title = attackable ? "射程内の敵を攻撃します" : "攻撃不可です";
+    attackButton.addEventListener("click", () => {
+      if (!attackable) {
+        state.message = "攻撃不可です";
+        safeRender();
+        return;
+      }
+      state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
+      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
+        if (typeof bridge.instance.click_tile === "function") {
+          bridge.instance.click_tile(enemyUnit.x, enemyUnit.y);
+        }
+        bridge.instance.attack_selected();
+        safeRender();
+        return;
+      }
+      attackEnemyTarget(enemyUnit, state);
+    });
+    if (enemyUnitActions) {
+      enemyUnitActions.appendChild(attackButton);
+    }
+
     const enemyTitle = document.createElement("div");
     enemyTitle.className = "unitInfoTitle";
     enemyTitle.textContent = `${enemyUnit.job}${enemyUnit.leader ? " / 部隊長" : ""}`;
@@ -1633,36 +1661,6 @@ function renderUnitPanel(current) {
       enemyTileSummary.className = "unitInfoBody";
       enemyTileSummary.textContent = tileSummary(tile);
       enemyUnitInfo.appendChild(enemyTileSummary);
-    }
-  }
-
-  if (enemyUnit) {
-    const attackButton = document.createElement("button");
-    attackButton.type = "button";
-    attackButton.className = "primary";
-    const attackable = canPlayerAttackTarget(current, enemyUnit);
-    attackButton.textContent = "攻撃";
-    attackButton.disabled = !attackable;
-    attackButton.title = attackable ? "射程内の敵を攻撃します" : "攻撃不可です";
-    attackButton.addEventListener("click", () => {
-      if (!attackable) {
-        state.message = "攻撃不可です";
-        safeRender();
-        return;
-      }
-      state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
-      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
-        if (typeof bridge.instance.click_tile === "function") {
-          bridge.instance.click_tile(enemyUnit.x, enemyUnit.y);
-        }
-        bridge.instance.attack_selected();
-        safeRender();
-        return;
-      }
-      attackEnemyTarget(enemyUnit, state);
-    });
-    if (enemyUnitActions) {
-      enemyUnitActions.appendChild(attackButton);
     }
   }
 
