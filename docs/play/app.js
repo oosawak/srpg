@@ -17,6 +17,7 @@ const abilityList = document.getElementById("abilityList");
 const unitInfo = document.getElementById("unitInfo");
 const unitActions = document.getElementById("unitActions");
 const unitCardOverlay = document.querySelector(".unitCardOverlay");
+const unitPanelClose = document.getElementById("unitPanelClose");
 const bootStatus = document.getElementById("bootStatus");
 const inputProbe = document.getElementById("inputProbe");
 const statusLine = document.createElement("p");
@@ -58,6 +59,7 @@ const gestureState = {
 
 const uiState = {
   zoom: loadSavedZoom(),
+  unitPanelHidden: false,
 };
 
 const state = createInitialState();
@@ -121,6 +123,7 @@ function makeUnit(id, clan, job, x, y, color, team, mov, range, hp, atk, leader 
 function resetGame() {
   const fresh = createInitialState();
   Object.assign(state, fresh);
+  uiState.unitPanelHidden = false;
 }
 
 function buildDemoMap() {
@@ -912,12 +915,14 @@ function handlePlayerClick(tile, current) {
     state.interactionMode = null;
     state.selectedTile = { x: tile.x, y: tile.y };
     state.message = `${clickedUnit.job} を選択`;
+    uiState.unitPanelHidden = false;
     return;
   }
 
   if (clickedUnit && clickedUnit.team === "enemy") {
     const sameTile = Boolean(current.selectedTile && current.selectedTile.x === tile.x && current.selectedTile.y === tile.y);
     state.selectedTile = { x: tile.x, y: tile.y };
+    uiState.unitPanelHidden = false;
     if (selected && sameTile && canPlayerAttackTarget(current, clickedUnit)) {
       attackUnit(selected, clickedUnit);
       state.moveOrigin = null;
@@ -933,6 +938,7 @@ function handlePlayerClick(tile, current) {
   if (!isMoveMode(current)) {
     state.selectedTile = { x: tile.x, y: tile.y };
     state.message = "移動は『移動』ボタンから開始してください";
+    uiState.unitPanelHidden = false;
     return;
   }
 
@@ -946,11 +952,13 @@ function handlePlayerClick(tile, current) {
     state.selectedUnitId = selected.id;
     state.interactionMode = null;
     state.selectedTile = { x: tile.x, y: tile.y };
+    uiState.unitPanelHidden = false;
     return;
   }
 
   state.selectedTile = { x: tile.x, y: tile.y };
   state.message = "移動先を選択してください";
+  uiState.unitPanelHidden = false;
 }
 
 function handleCanvasPoint(point, current, meta = {}) {
@@ -1435,6 +1443,12 @@ function drawHud(current) {
 
 function renderUnitPanel(current) {
   if (!unitInfo || !unitActions) return;
+  if (unitCardOverlay) {
+    unitCardOverlay.hidden = Boolean(uiState.unitPanelHidden);
+  }
+  if (uiState.unitPanelHidden) {
+    return;
+  }
 
   const tile = selectedTileAt(current);
   const tileUnit = selectedTileUnit(current);
@@ -1550,6 +1564,13 @@ function renderUnitPanel(current) {
     cancelMoveSelection();
   });
   unitActions.appendChild(cancelButton);
+}
+
+if (unitPanelClose) {
+  unitPanelClose.addEventListener("click", () => {
+    uiState.unitPanelHidden = true;
+    safeRender();
+  });
 }
 
 function showStartupError(error) {

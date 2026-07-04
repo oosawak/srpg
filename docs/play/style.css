@@ -255,6 +255,31 @@ canvas {
   font-size: 12px;
 }
 
+.unitCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.unitCardHeader span {
+  min-width: 0;
+}
+
+.unitPanelClose {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.unitPanelClose:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .unitCardOverlay .unitInfoTitle {
   font-size: 12px;
 }
