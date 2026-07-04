@@ -46,6 +46,17 @@ const frame = {
   unitHitboxes: [],
 };
 
+const gestureState = {
+  active: false,
+  pointerId: null,
+  pointerType: null,
+  timerId: 0,
+  startPoint: null,
+  startTime: 0,
+  current: null,
+  longPressFired: false,
+};
+
 const uiState = {
   boxMode: "open",
   zoom: window.matchMedia("(max-width: 768px)").matches ? 0.75 : 1,
@@ -61,6 +72,9 @@ const animation = {
   unitPaths: new Map(),
   rafId: 0,
 };
+
+const LONG_PRESS_MS = 450;
+const LONG_PRESS_MOVE_PX = 10;
 
 function createInitialState() {
   return {
@@ -844,24 +858,18 @@ function handlePlayerClick(tile, current) {
   state.message = "移動先を選択してください";
 }
 
-function handleCanvasClick(event) {
-  event.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const point = {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
-  };
-  const current = getCurrentState();
-  markInput(`${event.type} on ${describeTarget(event)}`);
+function handleCanvasPoint(point, current, meta = {}) {
+  const label = meta.longPress ? "長押し" : meta.source === "tap" ? "タップ" : "クリック";
+  markInput(`${label} on canvas`);
   debugLog("canvas input", {
-    type: event.type,
-    target: describeTarget(event),
+    type: label,
+    target: "canvas",
     point: { x: Math.round(point.x), y: Math.round(point.y) },
     phase: current.phase,
     viewMode: current.viewMode,
     wasm: bridge.useWasm,
   });
-  statusLine.textContent = `クリック: ${Math.round(point.x)}, ${Math.round(point.y)}`;
+  statusLine.textContent = `${label}: ${Math.round(point.x)}, ${Math.round(point.y)}`;
   const hitUnit = hitTestUnit(point, current);
   if (hitUnit) {
     debugLog("canvas hit unit", { unitId: hitUnit.id, tileX: hitUnit.tileX, tileY: hitUnit.tileY });
@@ -905,6 +913,128 @@ function handleCanvasClick(event) {
   handlePlayerClick(tile, state);
   debugLog("canvas handled tile click locally");
   safeRender();
+}
+
+function handleCanvasClick(event) {
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const point = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+  const current = getCurrentState();
+  handleCanvasPoint(point, current, { source: "mouse" });
+}
+
+function cancelLongPressGesture() {
+  if (gestureState.timerId) {
+    clearTimeout(gestureState.timerId);
+    gestureState.timerId = 0;
+  }
+  gestureState.active = false;
+  gestureState.pointerId = null;
+  gestureState.pointerType = null;
+  gestureState.startPoint = null;
+  gestureState.startTime = 0;
+  gestureState.current = null;
+  gestureState.longPressFired = false;
+}
+
+function beginLongPressGesture(event) {
+  if (gestureState.active) {
+    cancelLongPressGesture();
+  }
+
+  gestureState.active = true;
+  gestureState.pointerId = event.pointerId;
+  gestureState.pointerType = event.pointerType;
+  gestureState.startTime = performance.now();
+  gestureState.current = getCurrentState();
+  const rect = canvas.getBoundingClientRect();
+  gestureState.startPoint = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+  gestureState.longPressFired = false;
+
+  if (canvas.setPointerCapture) {
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // ignore capture failures on older browsers
+    }
+  }
+
+  gestureState.timerId = window.setTimeout(() => {
+    if (!gestureState.active || gestureState.longPressFired || !gestureState.startPoint || !gestureState.current) return;
+    gestureState.longPressFired = true;
+    debugLog("canvas long press fired", {
+      pointerId: gestureState.pointerId,
+      pointerType: gestureState.pointerType,
+    });
+    handleCanvasPoint(gestureState.startPoint, gestureState.current, { longPress: true });
+  }, LONG_PRESS_MS);
+}
+
+function handleLongPressPointerDown(event) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  const current = getCurrentState();
+  markInput(`${event.type} on ${describeTarget(event)}`);
+  debugLog("canvas pointerdown", {
+    type: event.type,
+    pointerType: event.pointerType,
+    point: { x: Math.round(event.clientX), y: Math.round(event.clientY) },
+    phase: current.phase,
+    viewMode: current.viewMode,
+    wasm: bridge.useWasm,
+  });
+
+  if (event.pointerType === "mouse") {
+    handleCanvasClick(event);
+    return;
+  }
+
+  beginLongPressGesture(event);
+}
+
+function handleLongPressPointerMove(event) {
+  if (!gestureState.active || gestureState.pointerId !== event.pointerId || gestureState.longPressFired) return;
+  const rect = canvas.getBoundingClientRect();
+  const point = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+  const dx = point.x - gestureState.startPoint.x;
+  const dy = point.y - gestureState.startPoint.y;
+  if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_PX) {
+    debugLog("canvas long press canceled by move", { dx: Math.round(dx), dy: Math.round(dy) });
+    cancelLongPressGesture();
+  }
+}
+
+function handleLongPressPointerUp(event) {
+  if (!gestureState.active || gestureState.pointerId !== event.pointerId) return;
+
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const point = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+  const current = gestureState.current ?? getCurrentState();
+  const shouldTap = !gestureState.longPressFired;
+  cancelLongPressGesture();
+
+  if (shouldTap) {
+    handleCanvasPoint(point, current, { source: "tap" });
+  }
+}
+
+function handleLongPressPointerCancel(event) {
+  if (gestureState.active && gestureState.pointerId === event.pointerId) {
+    cancelLongPressGesture();
+  }
 }
 
 function terrainBadge(tile) {
@@ -1651,7 +1781,10 @@ resetViewButton.addEventListener("click", () => {
   }
 });
 
-canvas.addEventListener("pointerdown", handleCanvasClick);
+canvas.addEventListener("pointerdown", handleLongPressPointerDown);
+canvas.addEventListener("pointermove", handleLongPressPointerMove);
+canvas.addEventListener("pointerup", handleLongPressPointerUp);
+canvas.addEventListener("pointercancel", handleLongPressPointerCancel);
 
 window.addEventListener("resize", safeRender);
 

@@ -155,6 +155,7 @@ canvas {
   height: auto;
   display: block;
   cursor: pointer;
+  touch-action: none;
 }
 
 .panel {
