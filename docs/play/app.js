@@ -1169,20 +1169,19 @@ function drawIsoTile(tile, pos, current, overlays) {
   const leftShade = shadeColor(base, -0.24);
   const rightShade = shadeColor(base, -0.14);
   const topShade = shadeColor(base, 0.06);
+  const frontShade = uiState.boxMode === "closed" ? shadeColor(base, -0.34) : shadeColor(base, -0.18);
   const zoom = pos.size / TILE_SIZE;
   const heightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
   const overlay = overlayColor(key, current, overlays);
 
-  if (uiState.boxMode === "closed") {
-    ctx.fillStyle = shadeColor(base, -0.34);
-    ctx.beginPath();
-    ctx.moveTo(polygon[3].x, polygon[3].y);
-    ctx.lineTo(polygon[2].x, polygon[2].y);
-    ctx.lineTo(polygon[2].x, polygon[2].y + heightPx);
-    ctx.lineTo(polygon[3].x, polygon[3].y + heightPx);
-    ctx.closePath();
-    ctx.fill();
-  }
+  ctx.fillStyle = frontShade;
+  ctx.beginPath();
+  ctx.moveTo(polygon[3].x, polygon[3].y);
+  ctx.lineTo(polygon[2].x, polygon[2].y);
+  ctx.lineTo(polygon[2].x, polygon[2].y + heightPx);
+  ctx.lineTo(polygon[3].x, polygon[3].y + heightPx);
+  ctx.closePath();
+  ctx.fill();
 
   ctx.fillStyle = leftShade;
   ctx.beginPath();
