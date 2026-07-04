@@ -24,7 +24,7 @@ const statusLine = document.createElement("p");
 
 const TILE_SIZE = 72;
 const ZOOM_MIN = 0.3;
-const ZOOM_MAX = 1.25;
+const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.05;
 const COLORS = {
   player: "#f3d36c",
