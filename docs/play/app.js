@@ -401,16 +401,16 @@ function animatedUnitPosition(unit, current, t) {
 
   const step = animation.sequence[stepIndex];
   if (stepIndex < animation.currentIndex) {
-    return { x: step.to.x, y: step.to.y, size: TILE_SIZE };
+    return { x: step.to.x, y: step.to.y, size: step.to.size ?? TILE_SIZE };
   }
   if (stepIndex > animation.currentIndex) {
-    return { x: step.from.x, y: step.from.y, size: TILE_SIZE };
+    return { x: step.from.x, y: step.from.y, size: step.from.size ?? TILE_SIZE };
   }
 
   return {
     x: step.from.x + (step.to.x - step.from.x) * t,
     y: step.from.y + (step.to.y - step.from.y) * t,
-    size: step.from.size ?? TILE_SIZE,
+    size: step.from.size ?? step.to.size ?? TILE_SIZE,
   };
 }
 
