@@ -1274,14 +1274,6 @@ function renderUnitPanel(current) {
     unitActions.appendChild(attackButton);
   }
 
-  if (unit && unit.team === "enemy") {
-    const hint = document.createElement("div");
-    hint.className = "statusLine";
-    hint.textContent = canPlayerAttackTarget(current, unit) ? "攻撃可能です" : "射程外です";
-    unitActions.appendChild(hint);
-    return;
-  }
-
   if (!unit) {
     return;
   }
