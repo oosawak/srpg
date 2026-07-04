@@ -16,6 +16,7 @@ const unitCount = document.getElementById("unitCount");
 const abilityList = document.getElementById("abilityList");
 const unitInfo = document.getElementById("unitInfo");
 const enemyUnitInfo = document.getElementById("enemyUnitInfo");
+const enemyUnitCardOverlay = document.getElementById("enemyUnitCardOverlay");
 const unitActions = document.getElementById("unitActions");
 const unitCardOverlay = document.querySelector(".unitCardOverlay");
 const unitPanelClose = document.getElementById("unitPanelClose");
@@ -1518,12 +1519,14 @@ function renderUnitPanel(current) {
   const playerUnit = selectedPlayerUnit(current);
   const enemyUnit = tileUnit && tileUnit.team === "enemy" ? tileUnit : null;
   if (unitCardOverlay) {
-    unitCardOverlay.classList.toggle("unitCardOverlaySplit", Boolean(enemyUnit));
+    unitCardOverlay.hidden = Boolean(uiState.unitPanelHidden);
   }
   unitInfo.innerHTML = "";
+  if (enemyUnitCardOverlay) {
+    enemyUnitCardOverlay.hidden = !enemyUnit;
+  }
   if (enemyUnitInfo) {
     enemyUnitInfo.innerHTML = "";
-    enemyUnitInfo.hidden = !enemyUnit;
   }
   unitActions.innerHTML = "";
 

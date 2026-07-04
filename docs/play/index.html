@@ -37,11 +37,14 @@
               <span>ユニット情報</span>
               <button id="unitPanelClose" class="unitPanelClose" type="button" aria-label="情報ウィンドウを閉じる">✕</button>
             </h3>
-            <div class="unitCardColumns">
-              <div id="unitInfo" class="unitInfo">ユニットをクリックしてください</div>
-              <div id="enemyUnitInfo" class="unitInfo unitInfoEnemy" hidden></div>
-            </div>
+            <div id="unitInfo" class="unitInfo">ユニットをクリックしてください</div>
             <div id="unitActions" class="unitActions"></div>
+          </div>
+          <div class="unitCard enemyCardOverlay" id="enemyUnitCardOverlay" hidden>
+            <h3 class="unitCardHeader">
+              <span>敵ユニット</span>
+            </h3>
+            <div id="enemyUnitInfo" class="unitInfo"></div>
           </div>
           <div class="unitCard abilityCardOverlay">
             <h3>アビリティ</h3>
