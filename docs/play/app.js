@@ -1565,6 +1565,21 @@ function renderUnitPanel(current) {
     summary.textContent = `${unit.team === "player" ? "自軍" : "敵軍"} / HP ${unit.hp}/${unit.maxHp} / 移動 ${unit.mov} / 射程 ${unit.range}`;
     unitInfo.appendChild(summary);
 
+    const hpWrap = document.createElement("div");
+    hpWrap.className = "unitHpWrap";
+    const hpBar = document.createElement("div");
+    hpBar.className = "unitHpBar";
+    const hpFill = document.createElement("div");
+    hpFill.className = "unitHpFill";
+    hpFill.style.width = `${Math.max(0, Math.min(100, (unit.hp / unit.maxHp) * 100))}%`;
+    hpBar.appendChild(hpFill);
+    const hpLabel = document.createElement("div");
+    hpLabel.className = "unitHpLabel";
+    hpLabel.textContent = `残HP ${unit.hp}/${unit.maxHp}`;
+    hpWrap.appendChild(hpBar);
+    hpWrap.appendChild(hpLabel);
+    unitInfo.appendChild(hpWrap);
+
     const coords = document.createElement("div");
     coords.className = "unitInfoBody";
     coords.textContent = `位置 ${unit.x}, ${unit.y}`;

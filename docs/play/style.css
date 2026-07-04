@@ -201,6 +201,32 @@ canvas {
   line-height: 1.6;
 }
 
+.unitHpWrap {
+  display: grid;
+  gap: 4px;
+}
+
+.unitHpBar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.unitHpFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #83ffb7, #ffcc66);
+}
+
+.unitHpLabel {
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
 .unitActions {
   display: flex;
   flex-wrap: wrap;
