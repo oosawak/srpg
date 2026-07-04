@@ -13,8 +13,7 @@
           <p class="eyebrow">SRPG prototype</p>
           <h1>戦国タクティクス・マップビュー</h1>
           <p class="lede">
-            斜め見下ろしと、真上 2D を切り替えられる簡易デモです。
-            現在は Rust 側の設計に合わせた静的プレビューとして動きます。
+            斜め見下ろしと、真上 2D を切り替えられる戦国 SRPG の試作です。
           </p>
         </div>
         <div class="toolbar">
@@ -38,6 +37,10 @@
             <h3>ユニット情報</h3>
             <div id="unitInfo" class="unitInfo">ユニットをクリックしてください</div>
             <div id="unitActions" class="unitActions"></div>
+          </div>
+          <div class="unitCard abilityCardOverlay">
+            <h3>アビリティ</h3>
+            <div id="abilityList" class="abilityList"></div>
           </div>
           <canvas id="mapCanvas" width="960" height="720" aria-label="map view"></canvas>
         </div>
@@ -75,11 +78,6 @@
               <li>赤い敵をクリックで攻撃</li>
               <li>ターン終了で敵 AI を進める</li>
             </ul>
-          </div>
-
-          <div class="abilities">
-            <h3>アビリティ</h3>
-            <div id="abilityList" class="abilityList"></div>
           </div>
         </aside>
       </section>
