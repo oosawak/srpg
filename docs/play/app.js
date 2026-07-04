@@ -59,7 +59,9 @@ function createInitialState() {
     turnNumber: 1,
     phase: "player",
     selectedUnitId: 1,
+    selectedTile: { x: 2, y: 2 },
     interactionMode: null,
+    moveOrigin: null,
     message: "自軍を選択してください",
     map: buildDemoMap(),
     units: [
@@ -182,6 +184,34 @@ function tileStroke(tile) {
   return "rgba(0, 0, 0, 0.32)";
 }
 
+function terrainLabel(terrain) {
+  switch (terrain) {
+    case "Castle":
+      return "城";
+    case "Town":
+      return "城下町";
+    case "RiceField":
+      return "田んぼ";
+    case "Terrace":
+      return "段々畑";
+    case "Road":
+      return "道";
+    default:
+      return "平地";
+  }
+}
+
+function tileSummary(tile) {
+  if (!tile) return "タイル情報なし";
+
+  const traits = [];
+  if (tile.cover) traits.push("遮蔽あり");
+  if (tile.water) traits.push("水地");
+  if (tile.height > 0) traits.push(`高さ +${tile.height}`);
+
+  return `${terrainLabel(tile.terrain)} / 移動コスト ${terrainCost(tile)}${traits.length > 0 ? ` / ${traits.join(" / ")}` : ""}`;
+}
+
 function tileAt(map, x, y) {
   return map.tiles.find((tile) => tile.x === x && tile.y === y) ?? null;
 }
@@ -217,6 +247,7 @@ function snapshotState(current) {
     turnNumber: current.turnNumber,
     phase: current.phase,
     selectedUnitId: current.selectedUnitId,
+    selectedTile: current.selectedTile ? { ...current.selectedTile } : null,
     interactionMode: current.interactionMode ?? null,
     message: current.message,
     map: current.map,
@@ -311,6 +342,7 @@ function normalizeSnapshot(snapshot) {
     phase: snapshot?.phase ?? "player",
     selectedUnitId: snapshot?.selected_unit_id ?? null,
     interactionMode: snapshot?.interaction_mode ?? null,
+    selectedTile: snapshot?.selected_tile ?? null,
     message: snapshot?.message ?? "wasm bridge connected",
     map: {
       width: snapshot?.map?.width ?? 8,
@@ -489,6 +521,8 @@ function moveUnit(unit, tile, current) {
   unit.x = tile.x;
   unit.y = tile.y;
   unit.moved = true;
+  state.selectedTile = { x: tile.x, y: tile.y };
+  state.moveOrigin = null;
   state.message = `${unit.job} が ${tile.x},${tile.y} へ移動`;
   debugLog("moveUnit", { unitId: unit.id, job: unit.job, x: tile.x, y: tile.y });
 }
@@ -537,6 +571,41 @@ function isMoveMode(current) {
   return (current.interactionMode ?? null) === "move";
 }
 
+function selectedTileAt(current) {
+  if (!current.selectedTile) return null;
+  return tileAt(current.map, current.selectedTile.x, current.selectedTile.y);
+}
+
+function selectedTileUnit(current) {
+  if (!current.selectedTile) return null;
+  return unitAt(current.units, current.selectedTile.x, current.selectedTile.y);
+}
+
+function canPlayerAttackTarget(current, target) {
+  if (!target || target.team !== "enemy") return false;
+  const attacker = selectedPlayerUnit(current);
+  if (!attacker || attacker.acted || attacker.hp <= 0 || current.phase !== "player") return false;
+  const dist = Math.abs(target.x - attacker.x) + Math.abs(target.y - attacker.y);
+  return dist <= attacker.range;
+}
+
+function attackSelectedTarget(current = state) {
+  const attacker = selectedPlayerUnit(current);
+  const target = selectedTileUnit(current);
+  if (!attacker || !target || target.team !== "enemy") return false;
+  if (!canPlayerAttackTarget(current, target)) {
+    state.message = "攻撃範囲外です";
+    safeRender();
+    return false;
+  }
+
+  attackUnit(attacker, target);
+  state.selectedTile = { x: target.x, y: target.y };
+  state.moveOrigin = null;
+  safeRender();
+  return true;
+}
+
 function abilitiesForCurrent(current) {
   if (Array.isArray(current.abilities) && current.abilities.length > 0) {
     return current.abilities;
@@ -565,6 +634,8 @@ function selectFirstPlayerUnit() {
   const first = currentPlayerUnits(state.units)[0] ?? null;
   state.selectedUnitId = first ? first.id : null;
   state.interactionMode = null;
+  state.selectedTile = first ? { x: first.x, y: first.y } : null;
+  state.moveOrigin = null;
 }
 
 function startPlayerTurn() {
@@ -585,6 +656,8 @@ function endPlayerTurn() {
   state.message = "敵の行動中";
   state.selectedUnitId = null;
   state.interactionMode = null;
+  state.selectedTile = null;
+  state.moveOrigin = null;
   runEnemyTurn();
 }
 
@@ -693,20 +766,29 @@ function handlePlayerClick(tile, current) {
   if (clickedUnit && clickedUnit.team === "player") {
     state.selectedUnitId = clickedUnit.id;
     state.interactionMode = null;
+    state.selectedTile = { x: tile.x, y: tile.y };
+    state.moveOrigin = null;
     state.message = `${clickedUnit.job} を選択`;
     return;
   }
 
   if (clickedUnit && clickedUnit.team === "enemy") {
-    state.selectedUnitId = clickedUnit.id;
-    state.interactionMode = null;
-    state.message = `${clickedUnit.job} を選択`;
+    const sameTile = Boolean(current.selectedTile && current.selectedTile.x === tile.x && current.selectedTile.y === tile.y);
+    state.selectedTile = { x: tile.x, y: tile.y };
+    if (selected && sameTile && canPlayerAttackTarget(current, clickedUnit)) {
+      attackUnit(selected, clickedUnit);
+      state.moveOrigin = null;
+      state.message = `${selected.job} が ${clickedUnit.job} を攻撃`;
+    } else {
+      state.message = `${clickedUnit.job} を確認`;
+    }
     return;
   }
 
   if (!selected) return;
 
   if (!isMoveMode(current)) {
+    state.selectedTile = { x: tile.x, y: tile.y };
     state.message = "移動は『移動』ボタンから開始してください";
     return;
   }
@@ -720,9 +802,11 @@ function handlePlayerClick(tile, current) {
     moveUnit(selected, tile, current);
     state.selectedUnitId = selected.id;
     state.interactionMode = null;
+    state.selectedTile = { x: tile.x, y: tile.y };
     return;
   }
 
+  state.selectedTile = { x: tile.x, y: tile.y };
   state.message = "移動先を選択してください";
 }
 
@@ -1067,9 +1151,11 @@ function drawHud(current) {
 function renderUnitPanel(current) {
   if (!unitInfo || !unitActions) return;
 
-  const unit = selectedUnitById(current);
+  const unit = selectedPlayerUnit(current);
+  const tile = selectedTileAt(current);
+  const tileUnit = selectedTileUnit(current);
   if (unitCardOverlay) {
-    unitCardOverlay.classList.toggle("unitCardOverlayEnemy", Boolean(unit && unit.team === "enemy"));
+    unitCardOverlay.classList.toggle("unitCardOverlayEnemy", Boolean(tileUnit && tileUnit.team === "enemy" && !unit));
   }
   unitInfo.innerHTML = "";
   unitActions.innerHTML = "";
@@ -1079,29 +1165,80 @@ function renderUnitPanel(current) {
     empty.className = "statusLine";
     empty.textContent = "ユニットをタップしてください";
     unitInfo.appendChild(empty);
-    return;
+  } else {
+    const title = document.createElement("div");
+    title.className = "unitInfoTitle";
+    title.textContent = `${unit.job}${unit.leader ? " / 部隊長" : ""}`;
+    unitInfo.appendChild(title);
+
+    const summary = document.createElement("div");
+    summary.className = "unitInfoBody";
+    summary.textContent = `${unit.team === "player" ? "自軍" : "敵軍"} / HP ${unit.hp}/${unit.maxHp} / 移動 ${unit.mov} / 射程 ${unit.range}`;
+    unitInfo.appendChild(summary);
+
+    const coords = document.createElement("div");
+    coords.className = "unitInfoBody";
+    coords.textContent = `位置 ${unit.x}, ${unit.y}`;
+    unitInfo.appendChild(coords);
   }
 
-  const title = document.createElement("div");
-  title.className = "unitInfoTitle";
-  title.textContent = `${unit.job}${unit.leader ? " / 部隊長" : ""}`;
-  unitInfo.appendChild(title);
+  const tileTitle = document.createElement("div");
+  tileTitle.className = "unitInfoTitle";
+  tileTitle.textContent = tileUnit ? "タイル / ユニット" : "タイル";
+  unitInfo.appendChild(tileTitle);
 
-  const summary = document.createElement("div");
-  summary.className = "unitInfoBody";
-  summary.textContent = `${unit.team === "player" ? "自軍" : "敵軍"} / HP ${unit.hp}/${unit.maxHp} / 移動 ${unit.mov} / 射程 ${unit.range}`;
-  unitInfo.appendChild(summary);
+  const tileSummaryLine = document.createElement("div");
+  tileSummaryLine.className = "unitInfoBody";
+  if (tile) {
+    tileSummaryLine.textContent = `${terrainLabel(tile.terrain)} / 座標 ${tile.x}, ${tile.y}`;
+  } else {
+    tileSummaryLine.textContent = "タイル未選択";
+  }
+  unitInfo.appendChild(tileSummaryLine);
 
-  const coords = document.createElement("div");
-  coords.className = "unitInfoBody";
-  coords.textContent = `位置 ${unit.x}, ${unit.y}`;
-  unitInfo.appendChild(coords);
+  if (tile) {
+    const tileDetail = document.createElement("div");
+    tileDetail.className = "unitInfoBody";
+    tileDetail.textContent = tileSummary(tile);
+    unitInfo.appendChild(tileDetail);
+  }
 
-  if (unit.team !== "player") {
+  if (tileUnit && tileUnit.team === "enemy") {
+    const enemyTitle = document.createElement("div");
+    enemyTitle.className = "unitInfoTitle";
+    enemyTitle.textContent = `${tileUnit.job}${tileUnit.leader ? " / 部隊長" : ""}`;
+    unitInfo.appendChild(enemyTitle);
+
+    const enemySummary = document.createElement("div");
+    enemySummary.className = "unitInfoBody";
+    enemySummary.textContent = `敵軍 / HP ${tileUnit.hp}/${tileUnit.maxHp} / 位置 ${tileUnit.x}, ${tileUnit.y}`;
+    unitInfo.appendChild(enemySummary);
+  }
+
+  if (tileUnit && tileUnit.team === "enemy" && unit && canPlayerAttackTarget(current, tileUnit)) {
+    const attackButton = document.createElement("button");
+    attackButton.type = "button";
+    attackButton.className = "primary";
+    attackButton.textContent = "攻撃";
+    attackButton.addEventListener("click", () => {
+      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
+        bridge.instance.attack_selected();
+        safeRender();
+        return;
+      }
+      attackSelectedTarget(state);
+    });
+    unitActions.appendChild(attackButton);
+  }
+
+  if (tileUnit && tileUnit.team === "enemy") {
     const hint = document.createElement("div");
     hint.className = "statusLine";
-    hint.textContent = "敵ユニットは情報表示のみ";
+    hint.textContent = canPlayerAttackTarget(current, tileUnit) ? "攻撃可能です" : "射程外です";
     unitActions.appendChild(hint);
+  }
+
+  if (!unit) {
     return;
   }
 
@@ -1395,11 +1532,29 @@ function beginMoveSelection() {
 
   state.interactionMode = "move";
   state.selectedUnitId = selected.id;
+  state.selectedTile = { x: selected.x, y: selected.y };
+  state.moveOrigin = {
+    unitId: selected.id,
+    x: selected.x,
+    y: selected.y,
+    moved: selected.moved,
+  };
   state.message = `${selected.job} の移動先を選択してください`;
   safeRender();
 }
 
 function cancelMoveSelection() {
+  if (state.moveOrigin) {
+    const unit = state.units.find((candidate) => candidate.id === state.moveOrigin.unitId);
+    if (unit) {
+      unit.x = state.moveOrigin.x;
+      unit.y = state.moveOrigin.y;
+      unit.moved = state.moveOrigin.moved;
+      state.selectedUnitId = unit.id;
+      state.selectedTile = { x: unit.x, y: unit.y };
+    }
+  }
+  state.moveOrigin = null;
   state.interactionMode = null;
   state.message = "移動をキャンセル";
   safeRender();

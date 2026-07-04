@@ -54,7 +54,9 @@ struct GameState {
     turn_number: u32,
     phase: Phase,
     selected_unit_id: Option<UnitId>,
+    selected_tile: Option<(i32, i32)>,
     interaction_mode: Option<InteractionMode>,
+    move_origin: Option<(UnitId, i32, i32, bool)>,
     message: String,
     map: Map,
     units: Vec<UnitState>,
@@ -110,6 +112,14 @@ pub extern "C" fn srpg_begin_move() {
 pub extern "C" fn srpg_cancel_move() {
     with_game_mut(|game| {
         game.cancel_move_selection();
+        game.refresh_render();
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn srpg_attack_selected() {
+    with_game_mut(|game| {
+        game.attack_selected_tile();
         game.refresh_render();
     });
 }
@@ -176,7 +186,9 @@ impl GameState {
             turn_number: 1,
             phase: Phase::Player,
             selected_unit_id: Some(1),
+            selected_tile: Some((2, 2)),
             interaction_mode: None,
+            move_origin: None,
             message: "自軍の行動です".to_string(),
             map,
             units,
@@ -291,23 +303,37 @@ impl GameState {
     }
 
     fn selected_unit(&self) -> Option<(i32, i32)> {
-        self.selected_player_unit().map(|unit| (unit.x, unit.y))
+        self.selected_tile.or_else(|| self.selected_player_unit().map(|unit| (unit.x, unit.y)))
     }
 
     fn begin_move_selection(&mut self) {
-        let Some(unit_job) = self.selected_player_unit().map(|unit| unit.job) else {
+        let Some((unit_id, unit_job, unit_x, unit_y, moved)) = self
+            .selected_player_unit()
+            .map(|unit| (unit.id, unit.job, unit.x, unit.y, unit.moved))
+        else {
             self.message = "移動できる自軍ユニットを選択してください".to_string();
             return;
         };
-        if self.selected_player_unit().is_some_and(|unit| unit.moved) {
+        if moved {
             self.message = "そのユニットは移動済みです".to_string();
             return;
         }
         self.interaction_mode = Some(InteractionMode::Move);
+        self.move_origin = Some((unit_id, unit_x, unit_y, moved));
+        self.selected_tile = Some((unit_x, unit_y));
         self.message = format!("{} の移動先を選択してください", job_label(unit_job));
     }
 
     fn cancel_move_selection(&mut self) {
+        if let Some((unit_id, x, y, moved)) = self.move_origin.take() {
+            if let Some(unit) = self.units.iter_mut().find(|unit| unit.id == unit_id) {
+                unit.x = x;
+                unit.y = y;
+                unit.moved = moved;
+                self.selected_unit_id = Some(unit_id);
+                self.selected_tile = Some((x, y));
+            }
+        }
         self.interaction_mode = None;
         self.message = "移動をキャンセル".to_string();
     }
@@ -323,17 +349,23 @@ impl GameState {
             return;
         }
 
-        if let Some(unit) = self.unit_at(x, y) {
-            let unit_id = unit.id;
-            let unit_job = unit.job;
-            self.selected_unit_id = Some(unit_id);
+        if let Some(unit) = self.unit_at(x, y).cloned() {
+            self.selected_tile = Some((x, y));
             self.interaction_mode = None;
-            self.message = format!("{} を選択", job_label(unit_job));
+            if unit.team == Team::Player {
+                self.selected_unit_id = Some(unit.id);
+                self.message = format!("{} を選択", job_label(unit.job));
+            } else if self.can_attack_selected_tile() {
+                self.attack_selected_tile();
+            } else {
+                self.message = format!("{} を確認", job_label(unit.job));
+            }
             return;
         }
 
+        self.selected_tile = Some((x, y));
         if !matches!(self.interaction_mode, Some(InteractionMode::Move)) {
-            self.message = "移動は『移動』ボタンから開始してください".to_string();
+            self.message = self.describe_tile(x, y);
             return;
         }
 
@@ -352,6 +384,7 @@ impl GameState {
                 unit.y = y;
                 unit.moved = true;
                 self.interaction_mode = None;
+                self.selected_tile = Some((x, y));
                 self.message = format!("{} が {},{} へ移動", job_label(unit.job), x, y);
                 return;
             }
@@ -366,6 +399,94 @@ impl GameState {
             .find(|unit| unit.id == unit_id)
             .map(|unit| unit.atk)
             .unwrap_or(10)
+    }
+
+    fn can_attack_selected_tile(&self) -> bool {
+        let Some((x, y)) = self.selected_tile else {
+            return false;
+        };
+        let Some(attacker) = self.selected_player_unit() else {
+            return false;
+        };
+        if attacker.acted || attacker.hp <= 0 || !matches!(self.phase, Phase::Player) {
+            return false;
+        }
+        let Some(target) = self.unit_at(x, y) else {
+            return false;
+        };
+        if target.team != Team::Enemy {
+            return false;
+        }
+        let dist = (target.x - attacker.x).abs() + (target.y - attacker.y).abs();
+        dist <= attacker.range
+    }
+
+    fn attack_selected_tile(&mut self) -> bool {
+        let Some((x, y)) = self.selected_tile else {
+            return false;
+        };
+        let Some(attacker_id) = self.selected_unit_id else {
+            return false;
+        };
+        let Some(attacker_index) = self
+            .units
+            .iter()
+            .position(|unit| unit.id == attacker_id && unit.team == Team::Player && unit.hp > 0)
+        else {
+            return false;
+        };
+        let Some(target_index) = self
+            .units
+            .iter()
+            .position(|unit| unit.hp > 0 && unit.x == x && unit.y == y && unit.team == Team::Enemy)
+        else {
+            return false;
+        };
+
+        let dist = (self.units[target_index].x - self.units[attacker_index].x).abs()
+            + (self.units[target_index].y - self.units[attacker_index].y).abs();
+        if dist > self.units[attacker_index].range || self.units[attacker_index].acted {
+            self.message = "射程外です".to_string();
+            return false;
+        }
+
+        let attack = self.units[attacker_index].atk;
+        self.units[target_index].hp = (self.units[target_index].hp - attack).max(0);
+        self.units[attacker_index].acted = true;
+        self.message = format!(
+            "{} が {} に {} ダメージ",
+            job_label(self.units[attacker_index].job),
+            job_label(self.units[target_index].job),
+            attack
+        );
+        if self.units[target_index].hp <= 0 {
+            self.message.push_str(" / 撃破");
+        }
+        self.check_victory_or_defeat();
+        self.move_origin = None;
+        true
+    }
+
+    fn describe_tile(&self, x: i32, y: i32) -> String {
+        let Some(tile) = self.map.get(x, y) else {
+            return "マップ外".to_string();
+        };
+        let mut traits: Vec<String> = Vec::new();
+        if tile.cover {
+            traits.push("遮蔽あり".to_string());
+        }
+        if tile.water {
+            traits.push("水地".to_string());
+        }
+        if tile.height > 0 {
+            traits.push(format!("高さ +{}", tile.height));
+        }
+        let mut text = format!("{} / 移動コスト {}", terrain_label(tile.terrain), movement_cost(tile));
+        if !traits.is_empty() {
+            text.push_str(" / ");
+            text.push_str(&traits.join(" / "));
+        }
+        text
     }
 
     fn enemy_units_alive(&self) -> usize {
@@ -388,7 +509,9 @@ impl GameState {
         }
         self.phase = Phase::Enemy;
         self.selected_unit_id = None;
+        self.selected_tile = None;
         self.interaction_mode = None;
+        self.move_origin = None;
         self.message = "敵の行動中".to_string();
         self.run_enemy_turn();
     }
@@ -481,7 +604,11 @@ impl GameState {
             .iter()
             .find(|unit| unit.team == Team::Player && unit.hp > 0)
             .map(|unit| unit.id);
+        self.selected_tile = self
+            .selected_player_unit()
+            .map(|unit| (unit.x, unit.y));
         self.interaction_mode = None;
+        self.move_origin = None;
         self.message = "自軍の行動です".to_string();
     }
 
@@ -767,7 +894,7 @@ impl GameState {
             map_height: self.map.height,
             unit_count: self.units.iter().filter(|unit| unit.hp > 0).count() as u32,
             is_player_turn: matches!(self.phase, Phase::Player),
-            selected_tile: self.selected_unit(),
+            selected_tile: self.selected_tile.or_else(|| self.selected_unit()),
         }
     }
 }
@@ -881,6 +1008,19 @@ fn build_demo_map() -> Map {
 
 fn movement_cost(tile: &Tile) -> i32 {
     tile.movement_cost()
+}
+
+fn terrain_label(terrain: Terrain) -> &'static str {
+    match terrain {
+        Terrain::Plain => "平地",
+        Terrain::Mountain => "山",
+        Terrain::Castle => "城",
+        Terrain::Town => "城下町",
+        Terrain::RiceField => "田んぼ",
+        Terrain::Terrace => "段々畑",
+        Terrain::Road => "道",
+        Terrain::Water => "水",
+    }
 }
 
 fn view_mode_name(view_mode: ViewMode) -> &'static str {

@@ -39,6 +39,11 @@ async function loadWasm() {
         exports.srpg_cancel_move();
       }
     },
+    attack_selected() {
+      if (typeof exports.srpg_attack_selected === "function") {
+        exports.srpg_attack_selected();
+      }
+    },
     use_ability(index) {
       exports.srpg_use_ability(index | 0);
     },
