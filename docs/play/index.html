@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>srpg demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">SRPG prototype</p>
+          <h1>戦国タクティクス・マップビュー</h1>
+          <p class="lede">
+            FFT 風の斜め見下ろしと、真上 2D を切り替えられる簡易デモです。
+            現在は Rust 側の設計に合わせた静的プレビューとして動きます。
+          </p>
+        </div>
+        <div class="toolbar">
+          <button id="toggleView" class="primary">切替: 斜め見下ろし</button>
+          <button id="endTurn" class="secondary">ターン終了</button>
+          <button id="resetView" class="secondary">初期化</button>
+        </div>
+      </section>
+
+      <section class="board">
+        <div class="canvasWrap">
+          <canvas id="mapCanvas" width="960" height="720" aria-label="map view"></canvas>
+        </div>
+
+        <aside class="panel">
+          <h2>状態</h2>
+          <dl class="stats">
+            <div><dt>表示</dt><dd id="viewName">isometric</dd></div>
+            <div><dt>ターン</dt><dd id="turnNumber">1</dd></div>
+            <div><dt>フェーズ</dt><dd id="phaseName">player</dd></div>
+            <div><dt>選択</dt><dd id="selectedUnit">なし</dd></div>
+            <div><dt>部隊数</dt><dd id="unitCount">2</dd></div>
+            <div><dt>地形</dt><dd>山城 / 城下町 / 田んぼ / 段々畑</dd></div>
+          </dl>
+
+          <div class="legend">
+            <h3>凡例</h3>
+            <ul>
+              <li><span class="swatch plain"></span>平地</li>
+              <li><span class="swatch castle"></span>城</li>
+              <li><span class="swatch town"></span>城下町</li>
+              <li><span class="swatch rice"></span>田んぼ</li>
+              <li><span class="swatch terrace"></span>段々畑</li>
+              <li><span class="swatch road"></span>道</li>
+            </ul>
+          </div>
+
+          <div class="help">
+            <h3>操作</h3>
+            <ul>
+              <li>自軍ユニットをクリックして選択</li>
+              <li>青いマスをクリックで移動</li>
+              <li>赤い敵をクリックで攻撃</li>
+              <li>ターン終了で敵 AI を進める</li>
+            </ul>
+          </div>
+
+          <div class="abilities">
+            <h3>アビリティ</h3>
+            <div id="abilityList" class="abilityList"></div>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./wasm_bridge.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
