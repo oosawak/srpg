@@ -152,11 +152,14 @@ function updateAttackFxOverlay() {
   if (!attackFxOverlay) return;
   if (!uiState.attackFx) {
     attackFxOverlay.hidden = true;
-    attackFxOverlay.textContent = "";
+    attackFxOverlay.innerHTML = "";
     return;
   }
   attackFxOverlay.hidden = false;
-  attackFxOverlay.textContent = `${uiState.attackFx.attackerName} → ${uiState.attackFx.targetName}`;
+  attackFxOverlay.innerHTML = `
+    <span class="attackFxSlash"></span>
+    <span class="attackFxLabel">${uiState.attackFx.attackerName} → ${uiState.attackFx.targetName}</span>
+  `;
 }
 
 function playAttackFx(attacker, target, onComplete) {
