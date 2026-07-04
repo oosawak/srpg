@@ -17,6 +17,7 @@ const abilityList = document.getElementById("abilityList");
 const unitInfo = document.getElementById("unitInfo");
 const enemyUnitInfo = document.getElementById("enemyUnitInfo");
 const enemyUnitCardOverlay = document.getElementById("enemyUnitCardOverlay");
+const enemyUnitActions = document.getElementById("enemyUnitActions");
 const unitActions = document.getElementById("unitActions");
 const unitCardOverlay = document.querySelector(".unitCardOverlay");
 const unitPanelClose = document.getElementById("unitPanelClose");
@@ -1528,6 +1529,9 @@ function renderUnitPanel(current) {
   if (enemyUnitInfo) {
     enemyUnitInfo.innerHTML = "";
   }
+  if (enemyUnitActions) {
+    enemyUnitActions.innerHTML = "";
+  }
   unitActions.innerHTML = "";
 
   if (!playerUnit) {
@@ -1632,6 +1636,36 @@ function renderUnitPanel(current) {
     }
   }
 
+  if (enemyUnit) {
+    const attackButton = document.createElement("button");
+    attackButton.type = "button";
+    attackButton.className = "primary";
+    const attackable = canPlayerAttackTarget(current, enemyUnit);
+    attackButton.textContent = "攻撃";
+    attackButton.disabled = !attackable;
+    attackButton.title = attackable ? "射程内の敵を攻撃します" : "攻撃不可です";
+    attackButton.addEventListener("click", () => {
+      if (!attackable) {
+        state.message = "攻撃不可です";
+        safeRender();
+        return;
+      }
+      state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
+      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
+        if (typeof bridge.instance.click_tile === "function") {
+          bridge.instance.click_tile(enemyUnit.x, enemyUnit.y);
+        }
+        bridge.instance.attack_selected();
+        safeRender();
+        return;
+      }
+      attackEnemyTarget(enemyUnit, state);
+    });
+    if (enemyUnitActions) {
+      enemyUnitActions.appendChild(attackButton);
+    }
+  }
+
   if (!playerUnit) {
     return;
   }
@@ -1666,34 +1700,6 @@ function renderUnitPanel(current) {
     cancelMoveSelection();
   });
   unitActions.appendChild(cancelButton);
-
-  if (enemyUnit) {
-    const attackButton = document.createElement("button");
-    attackButton.type = "button";
-    attackButton.className = "primary";
-    const attackable = canPlayerAttackTarget(current, enemyUnit);
-    attackButton.textContent = "攻撃";
-    attackButton.disabled = !attackable;
-    attackButton.title = attackable ? "射程内の敵を攻撃します" : "攻撃不可です";
-    attackButton.addEventListener("click", () => {
-      if (!attackable) {
-        state.message = "攻撃不可です";
-        safeRender();
-        return;
-      }
-      state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
-      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
-        if (typeof bridge.instance.click_tile === "function") {
-          bridge.instance.click_tile(enemyUnit.x, enemyUnit.y);
-        }
-        bridge.instance.attack_selected();
-        safeRender();
-        return;
-      }
-      attackEnemyTarget(enemyUnit, state);
-    });
-    unitActions.appendChild(attackButton);
-  }
 }
 
 if (unitPanelClose) {
