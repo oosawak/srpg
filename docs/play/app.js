@@ -521,7 +521,7 @@ function screenToTile(point, current) {
     const da = current.viewMode === "isometric" ? a.x + a.y : a.y;
     const db = current.viewMode === "isometric" ? b.x + b.y : b.y;
     if (db !== da) return db - da;
-    return current.viewMode === "isometric" ? b.x - a.x : b.x - a.x;
+    return current.viewMode === "isometric" ? a.x - b.x : a.x - b.x;
   });
 
   for (const tile of tiles) {
@@ -1686,7 +1686,7 @@ function render() {
     const da = current.viewMode === "isometric" ? a.x + a.y : a.y;
     const db = current.viewMode === "isometric" ? b.x + b.y : b.y;
     if (da !== db) return da - db;
-    return current.viewMode === "isometric" ? a.x - b.x : a.x - b.x;
+    return current.viewMode === "isometric" ? b.x - a.x : a.x - b.x;
   });
   const overlays = overlaysForCurrentState(current);
   const moveCosts = moveCostsForCurrentState(current);
