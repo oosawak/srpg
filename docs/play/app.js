@@ -488,11 +488,11 @@ function normalizeSnapshot(snapshot) {
       y: unit.y ?? 0,
       color: unit.clan === 2 ? COLORS.enemy : COLORS.player,
       team: unit.clan === 2 ? "enemy" : "player",
-      mov: 4,
-      range: 1,
-      hp: 100,
-      maxHp: 100,
-      atk: 10,
+      mov: unit.mov ?? 4,
+      range: unit.range ?? 1,
+      hp: unit.hp ?? 100,
+      maxHp: unit.max_hp ?? unit.hp ?? 100,
+      atk: unit.atk ?? 10,
       moved: Boolean(unit.moved),
       acted: Boolean(unit.acted),
       leader: Boolean(unit.leader ?? (unit.id === 1 || unit.id === 3)),
@@ -1528,10 +1528,10 @@ function renderUnitPanel(current) {
     const attackable = canPlayerAttackTarget(current, unit);
     attackButton.textContent = "攻撃";
     attackButton.disabled = !attackable;
-    attackButton.title = attackable ? "射程内の敵を攻撃します" : "射程外です";
+    attackButton.title = attackable ? "射程内の敵を攻撃します" : "攻撃不可です";
     attackButton.addEventListener("click", () => {
       if (!attackable) {
-        state.message = "攻撃範囲外です";
+        state.message = "攻撃不可です";
         safeRender();
         return;
       }
@@ -1615,7 +1615,7 @@ function renderUnitPanel(current) {
 
     const enemySummary = document.createElement("div");
     enemySummary.className = "unitInfoBody";
-    enemySummary.textContent = `敵軍 / HP ${unit.hp}/${unit.maxHp} / 位置 ${unit.x}, ${unit.y}${canPlayerAttackTarget(current, unit) ? " / 攻撃可能" : " / 射程外"}`;
+    enemySummary.textContent = `敵軍 / HP ${unit.hp}/${unit.maxHp} / 位置 ${unit.x}, ${unit.y}${canPlayerAttackTarget(current, unit) ? " / 攻撃可能" : " / 攻撃不可"}`;
     unitInfo.appendChild(enemySummary);
   }
 
