@@ -482,7 +482,7 @@ function tileToScreen(tile, current) {
   }
 
   const isoX = (tile.x - tile.y) * (size / 2);
-  const isoY = (tile.x + tile.y) * (size / 4) - tile.height * (size / 4.5);
+  const isoY = (tile.x + tile.y) * (size / 4);
   return {
     x: origin.x + isoX,
     y: origin.y + isoY,
@@ -1272,7 +1272,7 @@ function drawUnit(unit, current, progress = 1) {
     ? pos.y + 11 * zoom
     : current.viewMode === "topdown"
       ? pos.y + 14 * zoom - Math.max(0, tile.height) * 1.5 * zoom
-      : pos.y + 11 * zoom - Math.max(0, tile.height) * 2.4 * zoom;
+      : pos.y + 11 * zoom;
   const radius = (current.viewMode === "topdown" ? 12 : 10) * zoom;
   frame.unitHitboxes.push({
     id: unit.id,
