@@ -21,6 +21,7 @@ const enemyUnitActions = document.getElementById("enemyUnitActions");
 const enemyUnitPanelClose = document.getElementById("enemyUnitPanelClose");
 const unitActions = document.getElementById("unitActions");
 const unitCardOverlay = document.querySelector(".unitCardOverlay");
+const attackFxOverlay = document.getElementById("attackFxOverlay");
 const unitPanelClose = document.getElementById("unitPanelClose");
 const bootStatus = document.getElementById("bootStatus");
 const inputProbe = document.getElementById("inputProbe");
@@ -65,6 +66,7 @@ const uiState = {
   zoom: loadSavedZoom(),
   unitPanelHidden: true,
   enemyPanelHidden: false,
+  attackFx: null,
 };
 
 const state = createInitialState();
@@ -84,6 +86,7 @@ const animation = {
 const LONG_PRESS_MS = 450;
 const LONG_PRESS_MOVE_PX = 10;
 const ZOOM_STORAGE_KEY = "srpg.play.zoom";
+let attackFxTimerId = 0;
 
 function createInitialState() {
   return {
@@ -130,10 +133,52 @@ function resetGame() {
   Object.assign(state, fresh);
   uiState.unitPanelHidden = true;
   uiState.enemyPanelHidden = false;
+  clearAttackFx();
 }
 
 function showUnitPanel() {
   uiState.unitPanelHidden = false;
+}
+
+function clearAttackFx() {
+  if (attackFxTimerId) {
+    window.clearTimeout(attackFxTimerId);
+    attackFxTimerId = 0;
+  }
+  uiState.attackFx = null;
+}
+
+function updateAttackFxOverlay() {
+  if (!attackFxOverlay) return;
+  if (!uiState.attackFx) {
+    attackFxOverlay.hidden = true;
+    attackFxOverlay.textContent = "";
+    return;
+  }
+  attackFxOverlay.hidden = false;
+  attackFxOverlay.textContent = `${uiState.attackFx.attackerName} → ${uiState.attackFx.targetName}`;
+}
+
+function playAttackFx(attacker, target, onComplete) {
+  if (!attacker || !target || typeof onComplete !== "function") return false;
+  clearAttackFx();
+  uiState.attackFx = {
+    attackerName: jobLabel(attacker.job),
+    targetName: jobLabel(target.job),
+  };
+  updateAttackFxOverlay();
+  safeRender();
+  attackFxTimerId = window.setTimeout(() => {
+    attackFxTimerId = 0;
+    try {
+      onComplete();
+    } finally {
+      uiState.attackFx = null;
+      updateAttackFxOverlay();
+      safeRender();
+    }
+  }, 220);
+  return true;
 }
 
 function buildDemoMap() {
@@ -731,10 +776,12 @@ function attackSelectedTarget(current = state) {
     return false;
   }
 
-  attackUnit(attacker, target);
-  state.selectedTile = { x: target.x, y: target.y };
-  state.moveOrigin = null;
-  safeRender();
+  playAttackFx(attacker, target, () => {
+    attackUnit(attacker, target);
+    state.selectedTile = { x: target.x, y: target.y };
+    state.moveOrigin = null;
+    safeRender();
+  });
   return true;
 }
 
@@ -747,11 +794,13 @@ function attackEnemyTarget(target, current = state) {
     return false;
   }
 
-  attackUnit(attacker, target);
-  state.selectedTile = { x: target.x, y: target.y };
-  state.moveOrigin = null;
-  state.interactionMode = null;
-  safeRender();
+  playAttackFx(attacker, target, () => {
+    attackUnit(attacker, target);
+    state.selectedTile = { x: target.x, y: target.y };
+    state.moveOrigin = null;
+    state.interactionMode = null;
+    safeRender();
+  });
   return true;
 }
 
@@ -1512,6 +1561,7 @@ function drawHud(current) {
   endTurnButton.disabled = !current.isPlayerTurn && current.phase !== "player";
   renderAbilityList(current);
   renderUnitPanel(current);
+  updateAttackFxOverlay();
 }
 
 function renderUnitPanel(current) {
@@ -1614,16 +1664,24 @@ function renderUnitPanel(current) {
         safeRender();
         return;
       }
-      state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
-      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
-        if (typeof bridge.instance.click_tile === "function") {
-          bridge.instance.click_tile(enemyUnit.x, enemyUnit.y);
+      const attacker = selectedPlayerUnit(current);
+      if (!attacker) return;
+      playAttackFx(attacker, enemyUnit, () => {
+        state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
+        if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
+          if (typeof bridge.instance.click_tile === "function") {
+            bridge.instance.click_tile(enemyUnit.x, enemyUnit.y);
+          }
+          bridge.instance.attack_selected();
+          safeRender();
+          return;
         }
-        bridge.instance.attack_selected();
+        attackUnit(attacker, enemyUnit);
+        state.selectedTile = { x: enemyUnit.x, y: enemyUnit.y };
+        state.moveOrigin = null;
+        state.interactionMode = null;
         safeRender();
-        return;
-      }
-      attackEnemyTarget(enemyUnit, state);
+      });
     });
     if (enemyUnitActions) {
       enemyUnitActions.appendChild(attackButton);
