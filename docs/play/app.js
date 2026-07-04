@@ -22,7 +22,6 @@ const inputProbe = document.getElementById("inputProbe");
 const statusLine = document.createElement("p");
 
 const TILE_SIZE = 72;
-const ISO_STACK_STEP = 18;
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 1.25;
 const ZOOM_STEP = 0.05;
@@ -338,8 +337,8 @@ function startUnitAnimation(fromState, toState) {
     if (!fromTile || !toTile) continue;
 
     unitPaths.set(unit.id, {
-      from: tileUnitPosition(fromTile, fromState),
-      to: tileUnitPosition(toTile, toState),
+      from: tileToScreen(fromTile, fromState),
+      to: tileToScreen(toTile, toState),
     });
   }
 
@@ -483,28 +482,11 @@ function tileToScreen(tile, current) {
   }
 
   const isoX = (tile.x - tile.y) * (size / 2);
-  const isoY = (tile.x + tile.y) * (size / 4);
+  const isoY = (tile.x + tile.y) * (size / 4) - tile.height * (size / 3);
   return {
     x: origin.x + isoX,
     y: origin.y + isoY,
     size,
-  };
-}
-
-function isoStackHeight(tile) {
-  return Math.max(0, tile.height) * ISO_STACK_STEP * currentZoom();
-}
-
-function tileUnitPosition(tile, current) {
-  const pos = tileToScreen(tile, current);
-  if (current.viewMode !== "isometric") {
-    return pos;
-  }
-
-  return {
-    x: pos.x,
-    y: pos.y - isoStackHeight(tile),
-    size: pos.size,
   };
 }
 
@@ -539,7 +521,7 @@ function screenToTile(point, current) {
     const da = current.viewMode === "isometric" ? a.x + a.y : a.y;
     const db = current.viewMode === "isometric" ? b.x + b.y : b.y;
     if (db !== da) return db - da;
-    return current.viewMode === "isometric" ? a.x - b.x : a.x - b.x;
+    return current.viewMode === "isometric" ? b.x - a.x : b.x - a.x;
   });
 
   for (const tile of tiles) {
@@ -562,8 +544,7 @@ function screenToTile(point, current) {
 }
 
 function hitIsoTile(point, pos, height) {
-  const liftedPos = { ...pos, y: pos.y - Math.max(0, height) * ISO_STACK_STEP * currentZoom() };
-  return pointInPolygon(point, isoPolygon(liftedPos));
+  return pointInPolygon(point, isoPolygon(pos));
 }
 
 function reachableTiles(unit, current) {
@@ -1181,34 +1162,33 @@ function drawTopDownTile(tile, pos, current, overlays) {
 
 function drawIsoTile(tile, pos, current, overlays) {
   const size = pos.size;
-  const stackHeight = isoStackHeight(tile);
-  const topPos = { x: pos.x, y: pos.y - stackHeight, size: pos.size };
-  const polygon = isoPolygon(topPos);
+  const polygon = isoPolygon(pos);
   const key = `${tile.x},${tile.y}`;
   const base = terrainColor(tile);
   const leftShade = shadeColor(base, -0.24);
   const rightShade = shadeColor(base, -0.14);
   const topShade = shadeColor(base, 0.06);
   const zoom = pos.size / TILE_SIZE;
-  const bodyHeight = 11 * zoom + stackHeight;
+  const frontHeightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
+  const heightPx = frontHeightPx;
   const overlay = overlayColor(key, current, overlays);
 
   ctx.fillStyle = shadeColor(base, -0.22);
   ctx.beginPath();
   ctx.moveTo(polygon[3].x, polygon[3].y);
   ctx.lineTo(polygon[2].x, polygon[2].y);
-  ctx.lineTo(polygon[2].x, pos.y + bodyHeight);
-  ctx.lineTo(polygon[3].x, pos.y + bodyHeight);
+  ctx.lineTo(polygon[2].x, polygon[2].y + frontHeightPx);
+  ctx.lineTo(polygon[3].x, polygon[3].y + frontHeightPx);
   ctx.closePath();
   ctx.fill();
 
   if (tile.height > 0) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
     ctx.beginPath();
-    ctx.moveTo(polygon[3].x, pos.y + bodyHeight);
-    ctx.lineTo(polygon[2].x, pos.y + bodyHeight);
-    ctx.lineTo(polygon[2].x + 3 * zoom, pos.y + bodyHeight + 5 * zoom);
-    ctx.lineTo(polygon[3].x - 3 * zoom, pos.y + bodyHeight + 5 * zoom);
+    ctx.moveTo(polygon[3].x, polygon[3].y + frontHeightPx);
+    ctx.lineTo(polygon[2].x, polygon[2].y + frontHeightPx);
+    ctx.lineTo(polygon[2].x + 3 * zoom, polygon[2].y + frontHeightPx + 5 * zoom);
+    ctx.lineTo(polygon[3].x - 3 * zoom, polygon[3].y + frontHeightPx + 5 * zoom);
     ctx.closePath();
     ctx.fill();
   }
@@ -1217,8 +1197,8 @@ function drawIsoTile(tile, pos, current, overlays) {
   ctx.beginPath();
   ctx.moveTo(polygon[0].x, polygon[0].y);
   ctx.lineTo(polygon[3].x, polygon[3].y);
-  ctx.lineTo(polygon[3].x, pos.y + bodyHeight);
-  ctx.lineTo(polygon[0].x, pos.y + bodyHeight);
+  ctx.lineTo(polygon[3].x, polygon[3].y + heightPx);
+  ctx.lineTo(polygon[0].x, polygon[0].y + heightPx);
   ctx.closePath();
   ctx.fill();
 
@@ -1226,8 +1206,8 @@ function drawIsoTile(tile, pos, current, overlays) {
   ctx.beginPath();
   ctx.moveTo(polygon[1].x, polygon[1].y);
   ctx.lineTo(polygon[2].x, polygon[2].y);
-  ctx.lineTo(polygon[2].x, pos.y + bodyHeight);
-  ctx.lineTo(polygon[1].x, pos.y + bodyHeight);
+  ctx.lineTo(polygon[2].x, polygon[2].y + heightPx);
+  ctx.lineTo(polygon[1].x, polygon[1].y + heightPx);
   ctx.closePath();
   ctx.fill();
 
@@ -1278,21 +1258,20 @@ function drawUnit(unit, current, progress = 1) {
   if (!tile) return;
 
   const path = animation.active ? animation.unitPaths.get(unit.id) : null;
-  const anchor = tileUnitPosition(tile, current);
   const pos = path
     ? {
         x: path.from.x + (path.to.x - path.from.x) * progress,
         y: path.from.y + (path.to.y - path.from.y) * progress,
         size: TILE_SIZE,
       }
-    : anchor;
+    : tileToScreen(tile, current);
   const zoom = pos.size / TILE_SIZE;
   const x = current.viewMode === "topdown" ? pos.x + pos.size / 2 - 1 : pos.x + pos.size / 2;
   const y = path
     ? pos.y + 11 * zoom
     : current.viewMode === "topdown"
       ? pos.y + 14 * zoom - Math.max(0, tile.height) * 1.5 * zoom
-      : pos.y + 11 * zoom;
+      : pos.y + 11 * zoom - Math.max(0, tile.height) * 4.5 * zoom;
   const radius = (current.viewMode === "topdown" ? 12 : 10) * zoom;
   frame.unitHitboxes.push({
     id: unit.id,
