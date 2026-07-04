@@ -1736,6 +1736,7 @@ function render() {
   const moveCosts = moveCostsForCurrentState(current);
   const selectedKey = selectedTileKey(current);
   const renderState = { ...current, selectedTileKey: selectedKey };
+  const progress = animationProgress();
 
   for (const tile of tiles) {
     const pos = tileToScreen(tile, current);
@@ -1754,7 +1755,7 @@ function render() {
     drawMoveCostLabel(String(cost), pos, current);
   }
 
-  current.units.forEach((unit) => drawUnit(unit, current));
+  current.units.forEach((unit) => drawUnit(unit, current, progress));
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
   ctx.font = "600 14px sans-serif";
