@@ -1541,8 +1541,9 @@ function renderUnitPanel(current) {
     attackButton.type = "button";
     attackButton.className = "primary";
     const attackable = canPlayerAttackTarget(current, unit);
-    attackButton.textContent = attackable ? "攻撃" : "射程外";
+    attackButton.textContent = "攻撃";
     attackButton.disabled = !attackable;
+    attackButton.title = attackable ? "射程内の敵を攻撃します" : "射程外です";
     attackButton.addEventListener("click", () => {
       if (!attackable) {
         state.message = "攻撃範囲外です";
@@ -1559,7 +1560,7 @@ function renderUnitPanel(current) {
     unitActions.prepend(attackButton);
   }
 
-  if (!unit) {
+  if (!unit || unit.team !== "player") {
     return;
   }
 
