@@ -23,7 +23,7 @@ const inputProbe = document.getElementById("inputProbe");
 const statusLine = document.createElement("p");
 
 const TILE_SIZE = 72;
-const ZOOM_MIN = 0.4;
+const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 1.25;
 const ZOOM_STEP = 0.05;
 const COLORS = {
