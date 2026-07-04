@@ -989,12 +989,6 @@ function handleLongPressPointerDown(event) {
     viewMode: current.viewMode,
     wasm: bridge.useWasm,
   });
-
-  if (event.pointerType === "mouse") {
-    handleCanvasClick(event);
-    return;
-  }
-
   beginLongPressGesture(event);
 }
 
