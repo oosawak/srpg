@@ -518,9 +518,10 @@ function pointInPolygon(point, polygon) {
 
 function screenToTile(point, current) {
   const tiles = [...current.map.tiles].sort((a, b) => {
-    const da = current.viewMode === "isometric" ? a.x + a.y + a.height : a.y;
-    const db = current.viewMode === "isometric" ? b.x + b.y + b.height : b.y;
-    return db - da;
+    const da = current.viewMode === "isometric" ? a.x + a.y : a.y;
+    const db = current.viewMode === "isometric" ? b.x + b.y : b.y;
+    if (db !== da) return db - da;
+    return current.viewMode === "isometric" ? b.x - a.x : b.x - a.x;
   });
 
   for (const tile of tiles) {
@@ -1168,20 +1169,20 @@ function drawIsoTile(tile, pos, current, overlays) {
   const rightShade = shadeColor(base, -0.14);
   const topShade = shadeColor(base, 0.06);
   const zoom = pos.size / TILE_SIZE;
-  const frontHeightPx = Math.max(0, tile.height) * 8 * zoom;
-  const heightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
+  const frontHeightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
+  const heightPx = frontHeightPx;
   const overlay = overlayColor(key, current, overlays);
 
-  if (tile.height > 0) {
-    ctx.fillStyle = shadeColor(base, -0.22);
-    ctx.beginPath();
-    ctx.moveTo(polygon[3].x, polygon[3].y);
-    ctx.lineTo(polygon[2].x, polygon[2].y);
-    ctx.lineTo(polygon[2].x, polygon[2].y + frontHeightPx);
-    ctx.lineTo(polygon[3].x, polygon[3].y + frontHeightPx);
-    ctx.closePath();
-    ctx.fill();
+  ctx.fillStyle = shadeColor(base, -0.22);
+  ctx.beginPath();
+  ctx.moveTo(polygon[3].x, polygon[3].y);
+  ctx.lineTo(polygon[2].x, polygon[2].y);
+  ctx.lineTo(polygon[2].x, polygon[2].y + frontHeightPx);
+  ctx.lineTo(polygon[3].x, polygon[3].y + frontHeightPx);
+  ctx.closePath();
+  ctx.fill();
 
+  if (tile.height > 0) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
     ctx.beginPath();
     ctx.moveTo(polygon[3].x, polygon[3].y + frontHeightPx);
@@ -1682,9 +1683,10 @@ function render() {
   frame.unitHitboxes = [];
 
   const tiles = [...current.map.tiles].sort((a, b) => {
-    const da = current.viewMode === "isometric" ? a.x + a.y + a.height : a.y;
-    const db = current.viewMode === "isometric" ? b.x + b.y + b.height : b.y;
-    return da - db;
+    const da = current.viewMode === "isometric" ? a.x + a.y : a.y;
+    const db = current.viewMode === "isometric" ? b.x + b.y : b.y;
+    if (da !== db) return da - db;
+    return current.viewMode === "isometric" ? a.x - b.x : a.x - b.x;
   });
   const overlays = overlaysForCurrentState(current);
   const moveCosts = moveCostsForCurrentState(current);
