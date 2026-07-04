@@ -1179,8 +1179,8 @@ function shadeColor(hex, percent) {
 }
 
 function overlayColor(key, current, overlays) {
-  if (current.selectedTileKey === key) return "rgba(255, 214, 102, 0.24)";
   if (overlays.attack.has(key)) return "rgba(255, 88, 88, 0.42)";
+  if (current.selectedTileKey === key) return "rgba(255, 214, 102, 0.24)";
   if (overlays.move.has(key)) return "rgba(89, 177, 255, 0.20)";
   return null;
 }
