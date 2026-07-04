@@ -18,6 +18,7 @@ const unitInfo = document.getElementById("unitInfo");
 const enemyUnitInfo = document.getElementById("enemyUnitInfo");
 const enemyUnitCardOverlay = document.getElementById("enemyUnitCardOverlay");
 const enemyUnitActions = document.getElementById("enemyUnitActions");
+const enemyUnitPanelClose = document.getElementById("enemyUnitPanelClose");
 const unitActions = document.getElementById("unitActions");
 const unitCardOverlay = document.querySelector(".unitCardOverlay");
 const unitPanelClose = document.getElementById("unitPanelClose");
@@ -63,6 +64,7 @@ const gestureState = {
 const uiState = {
   zoom: loadSavedZoom(),
   unitPanelHidden: true,
+  enemyPanelHidden: false,
 };
 
 const state = createInitialState();
@@ -127,6 +129,7 @@ function resetGame() {
   const fresh = createInitialState();
   Object.assign(state, fresh);
   uiState.unitPanelHidden = true;
+  uiState.enemyPanelHidden = false;
 }
 
 function showUnitPanel() {
@@ -945,6 +948,7 @@ function handlePlayerClick(tile, current) {
 
   if (clickedUnit && clickedUnit.team === "enemy") {
     state.selectedTile = { x: tile.x, y: tile.y };
+    uiState.enemyPanelHidden = false;
     showUnitPanel();
     state.message = canPlayerAttackTarget(current, clickedUnit)
       ? `${clickedUnit.job} を確認 / 攻撃可能`
@@ -1019,6 +1023,7 @@ function handleCanvasPoint(point, current, meta = {}) {
     }
 
     if (meta.longPress && hitUnit.unit.team === "enemy" && current.phase === "player") {
+      uiState.enemyPanelHidden = false;
       showUnitPanel();
       state.selectedTile = { x: hitUnit.tileX, y: hitUnit.tileY };
       if (bridge.useWasm && bridge.instance) {
@@ -1042,6 +1047,9 @@ function handleCanvasPoint(point, current, meta = {}) {
     }
 
     if (bridge.useWasm && bridge.instance) {
+      if (hitUnit.unit.team === "enemy") {
+        uiState.enemyPanelHidden = false;
+      }
       showUnitPanel();
       bridge.instance.click_tile(hitUnit.tileX, hitUnit.tileY);
       debugLog("canvas forwarded unit click to wasm");
@@ -1524,7 +1532,7 @@ function renderUnitPanel(current) {
   }
   unitInfo.innerHTML = "";
   if (enemyUnitCardOverlay) {
-    enemyUnitCardOverlay.hidden = !enemyUnit;
+    enemyUnitCardOverlay.hidden = !enemyUnit || uiState.enemyPanelHidden;
   }
   if (enemyUnitInfo) {
     enemyUnitInfo.innerHTML = "";
@@ -1703,6 +1711,13 @@ function renderUnitPanel(current) {
 if (unitPanelClose) {
   unitPanelClose.addEventListener("click", () => {
     uiState.unitPanelHidden = true;
+    safeRender();
+  });
+}
+
+if (enemyUnitPanelClose) {
+  enemyUnitPanelClose.addEventListener("click", () => {
+    uiState.enemyPanelHidden = true;
     safeRender();
   });
 }
