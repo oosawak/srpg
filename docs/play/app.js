@@ -1845,7 +1845,14 @@ function cancelMoveSelection() {
 function runTurnEnd() {
   debugLog("endTurn requested", { wasm: bridge.useWasm, phase: getCurrentState().phase });
   if (bridge.useWasm && bridge.instance) {
+    const before = snapshotState(getCurrentState());
     bridge.instance.end_turn();
+    const after = snapshotState(getCurrentState());
+    if (startUnitAnimation(before, after)) {
+      debugLog("endTurn animated via wasm bridge");
+      safeRender();
+      return;
+    }
     debugLog("endTurn forwarded to wasm");
     safeRender();
     return;
