@@ -200,23 +200,12 @@ function terrainCost(tile) {
   }
 }
 
-function terrainBaseHeight(tile) {
-  switch (tile.terrain) {
-    case "Castle":
-      return 2;
-    case "Town":
-      return 1;
-    case "RiceField":
-      return 1;
-    case "Terrace":
-      return 1;
-    default:
-      return 0;
-  }
+function renderHeight(tile) {
+  return Math.max(0, tile.height);
 }
 
-function renderHeight(tile) {
-  return terrainBaseHeight(tile) + Math.max(0, tile.height);
+function isoLiftPx(tile, zoom) {
+  return (11 + renderHeight(tile) * 8) * zoom;
 }
 
 function tileStroke(tile) {
@@ -501,7 +490,7 @@ function tileToScreen(tile, current) {
   }
 
   const isoX = (tile.x - tile.y) * (size / 2);
-  const isoY = (tile.x + tile.y) * (size / 4) - renderHeight(tile) * (size / 16);
+  const isoY = (tile.x + tile.y) * (size / 4) - isoLiftPx(tile, currentZoom());
   return {
     x: origin.x + isoX,
     y: origin.y + isoY,
@@ -1189,7 +1178,7 @@ function drawIsoTile(tile, pos, current, overlays) {
   const rightShade = shadeColor(base, depth > 0 ? -0.08 : -0.14);
   const topShade = shadeColor(base, depth > 0 ? 0.1 : 0.06);
   const zoom = pos.size / TILE_SIZE;
-  const frontHeightPx = (11 + depth * 8) * zoom;
+  const frontHeightPx = isoLiftPx(tile, zoom);
   const heightPx = frontHeightPx;
   const overlay = overlayColor(key, current, overlays);
 
@@ -1291,7 +1280,7 @@ function drawUnit(unit, current, progress = 1) {
     ? pos.y + 11 * zoom
     : current.viewMode === "topdown"
       ? pos.y + 14 * zoom - renderHeight(tile) * 1.5 * zoom
-      : pos.y + 11 * zoom - renderHeight(tile) * 4 * zoom;
+      : pos.y + 11 * zoom;
   const radius = (current.viewMode === "topdown" ? 12 : 10) * zoom;
   frame.unitHitboxes.push({
     id: unit.id,
