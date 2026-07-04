@@ -69,6 +69,7 @@ const animation = {
   duration: 320,
   unitPaths: new Map(),
   rafId: 0,
+  onComplete: null,
 };
 
 const LONG_PRESS_MS = 450;
@@ -334,7 +335,7 @@ function snapshotState(current) {
   };
 }
 
-function startUnitAnimation(fromState, toState) {
+function startUnitAnimation(fromState, toState, onComplete = null) {
   const unitPaths = new Map();
   for (const unit of toState.units) {
     const prev = fromState.units.find((candidate) => candidate.id === unit.id);
@@ -353,6 +354,7 @@ function startUnitAnimation(fromState, toState) {
   if (unitPaths.size === 0) {
     animation.active = false;
     animation.unitPaths = new Map();
+    animation.onComplete = null;
     if (animation.rafId) {
       cancelAnimationFrame(animation.rafId);
       animation.rafId = 0;
@@ -363,6 +365,7 @@ function startUnitAnimation(fromState, toState) {
   animation.active = true;
   animation.startedAt = performance.now();
   animation.unitPaths = unitPaths;
+  animation.onComplete = onComplete;
   debugLog("animation started", {
     movedUnits: [...unitPaths.keys()],
   });
@@ -400,8 +403,13 @@ function animationProgress() {
   const t = Math.max(0, Math.min(1, elapsed / animation.duration));
   if (t >= 1) {
     animation.active = false;
+    const onComplete = animation.onComplete;
     animation.unitPaths = new Map();
+    animation.onComplete = null;
     debugLog("animation complete");
+    if (typeof onComplete === "function") {
+      queueMicrotask(onComplete);
+    }
   }
   return easeOutCubic(t);
 }
@@ -796,6 +804,9 @@ function runEnemyTurn() {
   const current = state;
   const players = currentPlayerUnits(current.units);
   const enemies = currentEnemyUnits(current.units);
+  const beforeState = snapshotState(current);
+  const pendingAttacks = [];
+  let moved = false;
 
   for (const enemy of enemies) {
     if (players.length === 0) break;
@@ -818,25 +829,49 @@ function runEnemyTurn() {
       enemy.x = next.x;
       enemy.y = next.y;
       steps -= 1;
+      moved = true;
     }
 
     const dist = Math.abs(nearest.x - enemy.x) + Math.abs(nearest.y - enemy.y);
     if (dist <= enemy.range) {
-      damageUnit(nearest, enemy.atk);
-      state.message = `${enemy.job} が ${nearest.job} に ${enemy.atk} ダメージ`;
-      if (nearest.hp <= 0) {
-        state.message += " / 撃破";
-      }
+      pendingAttacks.push({
+        attackerId: enemy.id,
+        targetId: nearest.id,
+      });
     }
   }
 
-  state.turnNumber += 1;
-  startPlayerTurn();
-  if (currentPlayerUnits(state.units).length === 0) {
-    state.phase = "gameover";
-    state.message = "敗北";
-    state.selectedUnitId = null;
+  const afterMoveState = snapshotState(current);
+  const finishEnemyTurn = () => {
+    for (const attack of pendingAttacks) {
+      const attacker = state.units.find((unit) => unit.id === attack.attackerId && unit.hp > 0);
+      const target = state.units.find((unit) => unit.id === attack.targetId && unit.hp > 0);
+      if (!attacker || !target) continue;
+      damageUnit(target, attacker.atk);
+      state.message = `${attacker.job} が ${target.job} に ${attacker.atk} ダメージ`;
+      if (target.hp <= 0) {
+        state.message += " / 撃破";
+      }
+    }
+
+    state.turnNumber += 1;
+    startPlayerTurn();
+    if (currentPlayerUnits(state.units).length === 0) {
+      state.phase = "gameover";
+      state.message = "敗北";
+      state.selectedUnitId = null;
+    }
+    safeRender();
+  };
+
+  if (moved) {
+    state.phase = "enemy";
+    state.message = "敵が移動中";
+    startUnitAnimation(beforeState, afterMoveState, finishEnemyTurn);
+    return;
   }
+
+  finishEnemyTurn();
 }
 
 function handlePlayerClick(tile, current) {
