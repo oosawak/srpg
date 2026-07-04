@@ -23,8 +23,8 @@ const inputProbe = document.getElementById("inputProbe");
 const statusLine = document.createElement("p");
 
 const TILE_SIZE = 72;
-const ZOOM_MIN = 0.7;
-const ZOOM_MAX = 1.2;
+const ZOOM_MIN = 0.4;
+const ZOOM_MAX = 1.25;
 const ZOOM_STEP = 0.05;
 const COLORS = {
   player: "#f3d36c",
@@ -48,7 +48,7 @@ const frame = {
 
 const uiState = {
   boxMode: "open",
-  zoom: window.matchMedia("(max-width: 768px)").matches ? 0.85 : 1,
+  zoom: window.matchMedia("(max-width: 768px)").matches ? 0.75 : 1,
 };
 
 const state = createInitialState();
@@ -1575,7 +1575,7 @@ function zoomOut() {
 }
 
 function zoomReset() {
-  setZoom(window.matchMedia("(max-width: 768px)").matches ? 0.85 : 1);
+  setZoom(window.matchMedia("(max-width: 768px)").matches ? 0.75 : 1);
 }
 
 if (zoomRange) {

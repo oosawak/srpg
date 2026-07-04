@@ -424,6 +424,7 @@ dd {
   }
 
   .unitCardOverlay {
+    position: absolute;
     left: 10px;
     right: 10px;
     bottom: 10px;
@@ -437,6 +438,11 @@ dd {
   .unitCardOverlayEnemy {
     left: 10px;
     right: 10px;
+  }
+
+  canvas {
+    width: 100%;
+    height: min(72vh, 96vw);
   }
 
   .unitCardOverlay h3 {
