@@ -321,6 +321,7 @@ function snapshotState(current) {
     selectedUnitId: current.selectedUnitId,
     selectedTile: current.selectedTile ? { ...current.selectedTile } : null,
     interactionMode: current.interactionMode ?? null,
+    moveOrigin: current.moveOrigin ? { ...current.moveOrigin } : null,
     message: current.message,
     map: current.map,
     units: current.units.map((unit) => ({ ...unit })),
@@ -415,6 +416,7 @@ function normalizeSnapshot(snapshot) {
     selectedUnitId: snapshot?.selected_unit_id ?? null,
     interactionMode: snapshot?.interaction_mode ?? null,
     selectedTile: snapshot?.selected_tile ?? null,
+    moveOrigin: snapshot?.move_origin ?? null,
     message: snapshot?.message ?? "wasm bridge connected",
     map: {
       width: snapshot?.map?.width ?? 8,
@@ -596,7 +598,6 @@ function moveUnit(unit, tile, current) {
   unit.y = tile.y;
   unit.moved = true;
   state.selectedTile = { x: tile.x, y: tile.y };
-  state.moveOrigin = null;
   state.message = `${unit.job} が ${tile.x},${tile.y} へ移動`;
   debugLog("moveUnit", { unitId: unit.id, job: unit.job, x: tile.x, y: tile.y });
 }
@@ -839,7 +840,6 @@ function handlePlayerClick(tile, current) {
     state.selectedUnitId = clickedUnit.id;
     state.interactionMode = null;
     state.selectedTile = { x: tile.x, y: tile.y };
-    state.moveOrigin = null;
     state.message = `${clickedUnit.job} を選択`;
     return;
   }
@@ -1462,8 +1462,9 @@ function renderUnitPanel(current) {
   const cancelButton = document.createElement("button");
   cancelButton.type = "button";
   cancelButton.className = "secondary";
-  cancelButton.textContent = "キャンセル";
-  cancelButton.disabled = !isMoveMode(current);
+  const canUndoMove = Boolean(current.moveOrigin);
+  cancelButton.textContent = canUndoMove ? "移動を戻す" : "キャンセル";
+  cancelButton.disabled = !(isMoveMode(current) || canUndoMove);
   cancelButton.addEventListener("click", () => {
     if (bridge.useWasm && bridge.instance && typeof bridge.instance.cancel_move === "function") {
       bridge.instance.cancel_move();

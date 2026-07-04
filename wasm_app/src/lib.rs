@@ -262,6 +262,8 @@ impl GameState {
         write_coord_list(&mut self.render_buffer, &attack_tiles);
         self.render_buffer.push_str("],\"selected_tile\":");
         self.render_buffer.push_str(&opt_tile(summary.selected_tile));
+        self.render_buffer.push_str(",\"move_origin\":");
+        self.render_buffer.push_str(&opt_move_origin(summary.move_origin));
         self.render_buffer.push_str(",\"is_player_turn\":");
         self.render_buffer.push_str(bool_json(summary.is_player_turn));
         self.render_buffer.push_str(",\"unit_count\":");
@@ -895,6 +897,7 @@ impl GameState {
             unit_count: self.units.iter().filter(|unit| unit.hp > 0).count() as u32,
             is_player_turn: matches!(self.phase, Phase::Player),
             selected_tile: self.selected_tile.or_else(|| self.selected_unit()),
+            move_origin: self.move_origin,
         }
     }
 }
@@ -942,6 +945,7 @@ struct BattleSummary {
     unit_count: u32,
     is_player_turn: bool,
     selected_tile: Option<(i32, i32)>,
+    move_origin: Option<(UnitId, i32, i32, bool)>,
 }
 
 fn build_demo_map() -> Map {
@@ -1086,6 +1090,19 @@ fn opt_str(value: Option<InteractionMode>) -> &'static str {
 fn opt_tile(value: Option<(i32, i32)>) -> String {
     match value {
         Some((x, y)) => format!("{{\"x\":{},\"y\":{}}}", x, y),
+        None => "null".to_string(),
+    }
+}
+
+fn opt_move_origin(value: Option<(UnitId, i32, i32, bool)>) -> String {
+    match value {
+        Some((unit_id, x, y, moved)) => format!(
+            "{{\"unitId\":{},\"x\":{},\"y\":{},\"moved\":{}}}",
+            unit_id,
+            x,
+            y,
+            bool_json(moved)
+        ),
         None => "null".to_string(),
     }
 }
