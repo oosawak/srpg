@@ -59,7 +59,7 @@ const gestureState = {
 
 const uiState = {
   boxMode: "open",
-  zoom: window.matchMedia("(max-width: 768px)").matches ? 0.75 : 1,
+  zoom: loadSavedZoom(),
 };
 
 const state = createInitialState();
@@ -75,6 +75,7 @@ const animation = {
 
 const LONG_PRESS_MS = 450;
 const LONG_PRESS_MOVE_PX = 10;
+const ZOOM_STORAGE_KEY = "srpg.play.zoom";
 
 function createInitialState() {
   return {
@@ -235,12 +236,37 @@ function tileSummary(tile) {
   return `${terrainLabel(tile.terrain)} / 移動コスト ${terrainCost(tile)}${traits.length > 0 ? ` / ${traits.join(" / ")}` : ""}`;
 }
 
+function defaultZoom() {
+  return window.matchMedia("(max-width: 768px)").matches ? 0.75 : 1;
+}
+
+function loadSavedZoom() {
+  try {
+    const raw = window.localStorage.getItem(ZOOM_STORAGE_KEY);
+    if (raw == null) return defaultZoom();
+    const value = Number.parseFloat(raw);
+    if (!Number.isFinite(value)) return defaultZoom();
+    return clampZoom(value);
+  } catch {
+    return defaultZoom();
+  }
+}
+
+function saveZoom(value) {
+  try {
+    window.localStorage.setItem(ZOOM_STORAGE_KEY, String(value));
+  } catch {
+    // Ignore storage failures in restricted browsers or private mode.
+  }
+}
+
 function clampZoom(value) {
   return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
 }
 
 function setZoom(value) {
   uiState.zoom = clampZoom(value);
+  saveZoom(uiState.zoom);
   if (zoomRange) {
     zoomRange.value = String(Math.round(uiState.zoom * 100));
   }
@@ -1703,7 +1729,7 @@ function zoomOut() {
 }
 
 function zoomReset() {
-  setZoom(window.matchMedia("(max-width: 768px)").matches ? 0.75 : 1);
+  setZoom(defaultZoom());
 }
 
 if (zoomRange) {
