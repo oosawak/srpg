@@ -1167,27 +1167,27 @@ function drawIsoTile(tile, pos, current, overlays) {
   const leftShade = shadeColor(base, -0.24);
   const rightShade = shadeColor(base, -0.14);
   const topShade = shadeColor(base, 0.06);
-  const frontShade = shadeColor(base, -0.22);
   const zoom = pos.size / TILE_SIZE;
+  const frontHeightPx = Math.max(0, tile.height) * 8 * zoom;
   const heightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
   const overlay = overlayColor(key, current, overlays);
 
-  ctx.fillStyle = frontShade;
-  ctx.beginPath();
-  ctx.moveTo(polygon[3].x, polygon[3].y);
-  ctx.lineTo(polygon[2].x, polygon[2].y);
-  ctx.lineTo(polygon[2].x, polygon[2].y + heightPx);
-  ctx.lineTo(polygon[3].x, polygon[3].y + heightPx);
-  ctx.closePath();
-  ctx.fill();
-
   if (tile.height > 0) {
+    ctx.fillStyle = shadeColor(base, -0.22);
+    ctx.beginPath();
+    ctx.moveTo(polygon[3].x, polygon[3].y);
+    ctx.lineTo(polygon[2].x, polygon[2].y);
+    ctx.lineTo(polygon[2].x, polygon[2].y + frontHeightPx);
+    ctx.lineTo(polygon[3].x, polygon[3].y + frontHeightPx);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
     ctx.beginPath();
-    ctx.moveTo(polygon[3].x, polygon[3].y + heightPx);
-    ctx.lineTo(polygon[2].x, polygon[2].y + heightPx);
-    ctx.lineTo(polygon[2].x + 3 * zoom, polygon[2].y + heightPx + 5 * zoom);
-    ctx.lineTo(polygon[3].x - 3 * zoom, polygon[3].y + heightPx + 5 * zoom);
+    ctx.moveTo(polygon[3].x, polygon[3].y + frontHeightPx);
+    ctx.lineTo(polygon[2].x, polygon[2].y + frontHeightPx);
+    ctx.lineTo(polygon[2].x + 3 * zoom, polygon[2].y + frontHeightPx + 5 * zoom);
+    ctx.lineTo(polygon[3].x - 3 * zoom, polygon[3].y + frontHeightPx + 5 * zoom);
     ctx.closePath();
     ctx.fill();
   }
