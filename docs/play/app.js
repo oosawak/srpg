@@ -2,6 +2,11 @@ const canvas = document.getElementById("mapCanvas");
 const ctx = canvas.getContext("2d");
 const toggleViewButton = document.getElementById("toggleView");
 const toggleBoxButton = document.getElementById("toggleBox");
+const zoomOutButton = document.getElementById("zoomOut");
+const zoomResetButton = document.getElementById("zoomReset");
+const zoomInButton = document.getElementById("zoomIn");
+const zoomRange = document.getElementById("zoomRange");
+const zoomLabel = document.getElementById("zoomLabel");
 const endTurnButton = document.getElementById("endTurn");
 const resetViewButton = document.getElementById("resetView");
 const viewName = document.getElementById("viewName");
@@ -18,6 +23,9 @@ const inputProbe = document.getElementById("inputProbe");
 const statusLine = document.createElement("p");
 
 const TILE_SIZE = 72;
+const ZOOM_MIN = 0.7;
+const ZOOM_MAX = 1.2;
+const ZOOM_STEP = 0.05;
 const COLORS = {
   player: "#f3d36c",
   enemy: "#78e4ff",
@@ -40,6 +48,7 @@ const frame = {
 
 const uiState = {
   boxMode: "open",
+  zoom: window.matchMedia("(max-width: 768px)").matches ? 0.85 : 1,
 };
 
 const state = createInitialState();
@@ -210,6 +219,29 @@ function tileSummary(tile) {
   if (tile.height > 0) traits.push(`高さ +${tile.height}`);
 
   return `${terrainLabel(tile.terrain)} / 移動コスト ${terrainCost(tile)}${traits.length > 0 ? ` / ${traits.join(" / ")}` : ""}`;
+}
+
+function clampZoom(value) {
+  return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value));
+}
+
+function setZoom(value) {
+  uiState.zoom = clampZoom(value);
+  if (zoomRange) {
+    zoomRange.value = String(Math.round(uiState.zoom * 100));
+  }
+  if (zoomLabel) {
+    zoomLabel.textContent = `${Math.round(uiState.zoom * 100)}%`;
+  }
+  safeRender();
+}
+
+function adjustZoom(delta) {
+  setZoom(uiState.zoom + delta);
+}
+
+function currentZoom() {
+  return clampZoom(uiState.zoom);
 }
 
 function tileAt(map, x, y) {
@@ -383,36 +415,38 @@ function normalizeSnapshot(snapshot) {
 }
 
 function viewOrigin(current) {
+  const zoom = currentZoom();
   if (current.viewMode === "topdown") {
-    const mapPixelWidth = current.map.width * TILE_SIZE;
+    const mapPixelWidth = current.map.width * TILE_SIZE * zoom;
     return {
       x: Math.max(24, (canvas.clientWidth - mapPixelWidth) / 2),
-      y: 76,
+      y: Math.max(40, 76 * zoom),
     };
   }
 
   return {
     x: canvas.clientWidth / 2,
-    y: 104,
+    y: Math.max(48, 104 * zoom),
   };
 }
 
 function tileToScreen(tile, current) {
   const origin = viewOrigin(current);
+  const size = TILE_SIZE * currentZoom();
   if (current.viewMode === "topdown") {
     return {
-      x: origin.x + tile.x * TILE_SIZE,
-      y: origin.y + tile.y * TILE_SIZE,
-      size: TILE_SIZE,
+      x: origin.x + tile.x * size,
+      y: origin.y + tile.y * size,
+      size,
     };
   }
 
-  const isoX = (tile.x - tile.y) * (TILE_SIZE / 2);
-  const isoY = (tile.x + tile.y) * (TILE_SIZE / 4) - tile.height * (TILE_SIZE / 3);
+  const isoX = (tile.x - tile.y) * (size / 2);
+  const isoY = (tile.x + tile.y) * (size / 4) - tile.height * (size / 3);
   return {
     x: origin.x + isoX,
     y: origin.y + isoY,
-    size: TILE_SIZE,
+    size,
   };
 }
 
@@ -901,8 +935,9 @@ function overlayColor(key, current, overlays) {
 }
 
 function drawTopDownTile(tile, pos, current, overlays) {
-  const size = pos.size - 2;
-  const heightPx = 10 + Math.max(0, tile.height) * 6;
+  const zoom = pos.size / TILE_SIZE;
+  const size = pos.size - Math.max(2, Math.round(2 * zoom));
+  const heightPx = (10 + Math.max(0, tile.height) * 6) * zoom;
   const key = `${tile.x},${tile.y}`;
   const base = terrainColor(tile);
   const side = shadeColor(base, -0.26);
@@ -942,21 +977,21 @@ function drawTopDownTile(tile, pos, current, overlays) {
 
   if (heightPx > 10) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-    ctx.fillRect(top.x, top.y + size - 6, size, 6);
+    ctx.fillRect(top.x, top.y + size - 6 * zoom, size, 6 * zoom);
   }
 
   if (tile.height > 0) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
-    ctx.font = "bold 13px sans-serif";
+    ctx.font = `bold ${Math.max(9, 13 * zoom)}px sans-serif`;
     ctx.textAlign = "left";
-    ctx.fillText(String(tile.height), top.x + 8, top.y + 18);
+    ctx.fillText(String(tile.height), top.x + 8 * zoom, top.y + 18 * zoom);
   }
 
   if (terrainBadge(tile)) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.54)";
-    ctx.font = "bold 11px sans-serif";
+    ctx.font = `bold ${Math.max(8, 11 * zoom)}px sans-serif`;
     ctx.textAlign = "right";
-    ctx.fillText(terrainBadge(tile), top.x + size - 10, top.y + size - 10);
+    ctx.fillText(terrainBadge(tile), top.x + size - 10 * zoom, top.y + size - 10 * zoom);
   }
 }
 
@@ -968,7 +1003,8 @@ function drawIsoTile(tile, pos, current, overlays) {
   const leftShade = shadeColor(base, -0.24);
   const rightShade = shadeColor(base, -0.14);
   const topShade = shadeColor(base, 0.06);
-  const heightPx = 11 + Math.max(0, tile.height) * 8;
+  const zoom = pos.size / TILE_SIZE;
+  const heightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
   const overlay = overlayColor(key, current, overlays);
 
   if (uiState.boxMode === "closed") {
@@ -1054,13 +1090,14 @@ function drawUnit(unit, current, progress = 1) {
         size: TILE_SIZE,
       }
     : tileToScreen(tile, current);
+  const zoom = pos.size / TILE_SIZE;
   const x = current.viewMode === "topdown" ? pos.x + pos.size / 2 - 1 : pos.x + pos.size / 2;
   const y = path
-    ? pos.y + 11
+    ? pos.y + 11 * zoom
     : current.viewMode === "topdown"
-      ? pos.y + 14 - Math.max(0, tile.height) * 1.5
-      : pos.y + 11 - Math.max(0, tile.height) * 4.5;
-  const radius = current.viewMode === "topdown" ? 12 : 10;
+      ? pos.y + 14 * zoom - Math.max(0, tile.height) * 1.5 * zoom
+      : pos.y + 11 * zoom - Math.max(0, tile.height) * 4.5 * zoom;
+  const radius = (current.viewMode === "topdown" ? 12 : 10) * zoom;
   frame.unitHitboxes.push({
     id: unit.id,
     tileX: unit.x,
@@ -1072,7 +1109,7 @@ function drawUnit(unit, current, progress = 1) {
 
   ctx.beginPath();
   ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
-  ctx.ellipse(x, y + 11, radius + 3, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + 11 * zoom, radius + 3 * zoom, 5 * zoom, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.beginPath();
@@ -1092,16 +1129,16 @@ function drawUnit(unit, current, progress = 1) {
   }
 
   ctx.fillStyle = "#08111b";
-  ctx.font = 'bold 13px "Noto Sans JP", "Segoe UI Emoji", sans-serif';
+  ctx.font = `bold ${Math.max(9, 13 * zoom)}px "Noto Sans JP", "Segoe UI Emoji", sans-serif`;
   ctx.textAlign = "center";
-  ctx.fillText(unitBadgeText(unit), x, y + 4);
+  ctx.fillText(unitBadgeText(unit), x, y + 4 * zoom);
 
-  const barW = 30;
+  const barW = 30 * zoom;
   const hpPct = unit.hp / unit.maxHp;
   ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-  ctx.fillRect(x - barW / 2, y + 11, barW, 5);
+  ctx.fillRect(x - barW / 2, y + 11 * zoom, barW, 5 * zoom);
   ctx.fillStyle = unit.team === "player" ? "#83ffb7" : "#ff8b8b";
-  ctx.fillRect(x - barW / 2, y + 11, barW * hpPct, 5);
+  ctx.fillRect(x - barW / 2, y + 11 * zoom, barW * hpPct, 5 * zoom);
 }
 
 function hitTestUnit(point, current) {
@@ -1137,6 +1174,12 @@ function drawHud(current) {
   phaseName.textContent = current.phase;
   selectedUnit.textContent = current.selectedUnitId ?? "なし";
   unitCount.textContent = String(current.unitCount ?? current.units.filter((unit) => unit.hp > 0).length);
+  if (zoomLabel) {
+    zoomLabel.textContent = `${Math.round(currentZoom() * 100)}%`;
+  }
+  if (zoomRange) {
+    zoomRange.value = String(Math.round(currentZoom() * 100));
+  }
   toggleViewButton.textContent =
     current.viewMode === "isometric" ? "切替: 斜め見下ろし" : "切替: 真上 2D";
   if (toggleBoxButton) {
@@ -1412,9 +1455,10 @@ function tileCenter(pos, current) {
 
 function drawMoveCostLabel(text, pos, current) {
   const center = tileCenter(pos, current);
+  const zoom = pos.size / TILE_SIZE;
   const isTopo = current.viewMode === "topdown";
-  const width = isTopo ? 22 : 24;
-  const height = isTopo ? 18 : 20;
+  const width = (isTopo ? 22 : 24) * zoom;
+  const height = (isTopo ? 18 : 20) * zoom;
 
   ctx.save();
   ctx.globalAlpha = 0.82;
@@ -1422,12 +1466,12 @@ function drawMoveCostLabel(text, pos, current) {
   ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  roundedRectPath(center.x - width / 2, center.y - height / 2, width, height, 8);
+  roundedRectPath(center.x - width / 2, center.y - height / 2, width, height, 8 * zoom);
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.74)";
-  ctx.font = "700 12px sans-serif";
+  ctx.font = `700 ${Math.max(9, 12 * zoom)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, center.x, center.y + 0.5);
@@ -1520,6 +1564,26 @@ function toggleBoxMode() {
   uiState.boxMode = uiState.boxMode === "open" ? "closed" : "open";
   state.message = uiState.boxMode === "open" ? "箱を開いた表示" : "箱を閉じた表示";
   safeRender();
+}
+
+function zoomIn() {
+  adjustZoom(ZOOM_STEP);
+}
+
+function zoomOut() {
+  adjustZoom(-ZOOM_STEP);
+}
+
+function zoomReset() {
+  setZoom(window.matchMedia("(max-width: 768px)").matches ? 0.85 : 1);
+}
+
+if (zoomRange) {
+  zoomRange.value = String(Math.round(uiState.zoom * 100));
+  zoomRange.addEventListener("input", () => {
+    const value = Number.parseInt(zoomRange.value, 10) / 100;
+    setZoom(value);
+  });
 }
 
 function beginMoveSelection() {
@@ -1692,6 +1756,9 @@ connectBridge()
 window.srpgUi = {
   toggleView: toggleViewMode,
   toggleBox: toggleBoxMode,
+  zoomIn,
+  zoomOut,
+  zoomReset,
   endTurn: runTurnEnd,
   reset: () => {
     if (bridge.useWasm && bridge.instance) {

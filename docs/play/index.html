@@ -20,6 +20,13 @@
         <div class="toolbar">
           <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
           <button id="toggleBox" class="secondary" onclick="window.srpgUi && window.srpgUi.toggleBox()">箱: 開く</button>
+          <button id="zoomOut" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomOut()">縮小</button>
+          <button id="zoomReset" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomReset()">標準</button>
+          <button id="zoomIn" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomIn()">拡大</button>
+          <label class="zoomControl" for="zoomRange">
+            <span id="zoomLabel">90%</span>
+            <input id="zoomRange" type="range" min="70" max="120" step="5" value="90" />
+          </label>
           <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
           <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
         </div>
