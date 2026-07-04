@@ -426,17 +426,17 @@ dd {
   .unitCardOverlay {
     position: absolute;
     left: 10px;
-    right: 10px;
+    right: auto;
     bottom: 10px;
-    width: auto;
-    max-width: none;
+    width: min(240px, calc(100% - 20px));
+    max-width: 240px;
     max-height: 24vh;
     overflow: auto;
     padding: 8px 9px;
   }
 
   .unitCardOverlayEnemy {
-    left: 10px;
+    left: auto;
     right: 10px;
   }
 
