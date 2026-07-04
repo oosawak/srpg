@@ -200,6 +200,25 @@ function terrainCost(tile) {
   }
 }
 
+function terrainBaseHeight(tile) {
+  switch (tile.terrain) {
+    case "Castle":
+      return 2;
+    case "Town":
+      return 1;
+    case "RiceField":
+      return 1;
+    case "Terrace":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function renderHeight(tile) {
+  return terrainBaseHeight(tile) + Math.max(0, tile.height);
+}
+
 function tileStroke(tile) {
   if (tile.water) return "rgba(204, 236, 255, 0.35)";
   if (tile.cover) return "rgba(255, 255, 255, 0.18)";
@@ -482,7 +501,7 @@ function tileToScreen(tile, current) {
   }
 
   const isoX = (tile.x - tile.y) * (size / 2);
-  const isoY = (tile.x + tile.y) * (size / 4);
+  const isoY = (tile.x + tile.y) * (size / 4) - renderHeight(tile) * (size / 16);
   return {
     x: origin.x + isoX,
     y: origin.y + isoY,
@@ -1165,12 +1184,12 @@ function drawIsoTile(tile, pos, current, overlays) {
   const polygon = isoPolygon(pos);
   const key = `${tile.x},${tile.y}`;
   const base = terrainColor(tile);
-  const depth = Math.max(0, tile.height);
+  const depth = renderHeight(tile);
   const leftShade = shadeColor(base, depth > 0 ? -0.14 : -0.24);
   const rightShade = shadeColor(base, depth > 0 ? -0.08 : -0.14);
   const topShade = shadeColor(base, depth > 0 ? 0.1 : 0.06);
   const zoom = pos.size / TILE_SIZE;
-  const frontHeightPx = (11 + Math.max(0, tile.height) * 8) * zoom;
+  const frontHeightPx = (11 + depth * 8) * zoom;
   const heightPx = frontHeightPx;
   const overlay = overlayColor(key, current, overlays);
 
@@ -1183,7 +1202,7 @@ function drawIsoTile(tile, pos, current, overlays) {
   ctx.closePath();
   ctx.fill();
 
-  if (tile.height > 0) {
+  if (depth > 0) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
     ctx.beginPath();
     ctx.moveTo(polygon[3].x, polygon[3].y + frontHeightPx);
@@ -1241,7 +1260,7 @@ function drawIsoTile(tile, pos, current, overlays) {
   ctx.strokeStyle = tileStroke(tile);
   ctx.stroke();
 
-  if (tile.height > 0) {
+  if (depth > 0) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
     ctx.beginPath();
     ctx.moveTo(polygon[1].x, polygon[1].y + 2);
@@ -1271,8 +1290,8 @@ function drawUnit(unit, current, progress = 1) {
   const y = path
     ? pos.y + 11 * zoom
     : current.viewMode === "topdown"
-      ? pos.y + 14 * zoom - Math.max(0, tile.height) * 1.5 * zoom
-      : pos.y + 11 * zoom;
+      ? pos.y + 14 * zoom - renderHeight(tile) * 1.5 * zoom
+      : pos.y + 11 * zoom - renderHeight(tile) * 4 * zoom;
   const radius = (current.viewMode === "topdown" ? 12 : 10) * zoom;
   frame.unitHitboxes.push({
     id: unit.id,
