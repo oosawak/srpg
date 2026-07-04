@@ -15,6 +15,7 @@ const selectedUnit = document.getElementById("selectedUnit");
 const unitCount = document.getElementById("unitCount");
 const abilityList = document.getElementById("abilityList");
 const unitInfo = document.getElementById("unitInfo");
+const enemyUnitInfo = document.getElementById("enemyUnitInfo");
 const unitActions = document.getElementById("unitActions");
 const unitCardOverlay = document.querySelector(".unitCardOverlay");
 const unitPanelClose = document.getElementById("unitPanelClose");
@@ -1517,9 +1518,13 @@ function renderUnitPanel(current) {
   const playerUnit = selectedPlayerUnit(current);
   const enemyUnit = tileUnit && tileUnit.team === "enemy" ? tileUnit : null;
   if (unitCardOverlay) {
-    unitCardOverlay.classList.toggle("unitCardOverlayEnemy", Boolean(enemyUnit));
+    unitCardOverlay.classList.toggle("unitCardOverlaySplit", Boolean(enemyUnit));
   }
   unitInfo.innerHTML = "";
+  if (enemyUnitInfo) {
+    enemyUnitInfo.innerHTML = "";
+    enemyUnitInfo.hidden = !enemyUnit;
+  }
   unitActions.innerHTML = "";
 
   if (!playerUnit) {
@@ -1584,12 +1589,12 @@ function renderUnitPanel(current) {
     const enemyTitle = document.createElement("div");
     enemyTitle.className = "unitInfoTitle";
     enemyTitle.textContent = `${enemyUnit.job}${enemyUnit.leader ? " / 部隊長" : ""}`;
-    unitInfo.appendChild(enemyTitle);
+    enemyUnitInfo.appendChild(enemyTitle);
 
     const enemySummary = document.createElement("div");
     enemySummary.className = "unitInfoBody";
     enemySummary.textContent = `敵軍 / HP ${enemyUnit.hp}/${enemyUnit.maxHp} / 位置 ${enemyUnit.x}, ${enemyUnit.y}${canPlayerAttackTarget(current, enemyUnit) ? " / 攻撃可能" : " / 攻撃不可"}`;
-    unitInfo.appendChild(enemySummary);
+    enemyUnitInfo.appendChild(enemySummary);
   }
 
   if (!playerUnit) {

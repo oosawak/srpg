@@ -234,21 +234,32 @@ canvas {
   margin-top: 8px;
 }
 
+.unitCardColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
 .unitCardOverlay {
   position: absolute;
   left: 16px;
   bottom: 16px;
   z-index: 2;
-  width: min(220px, calc(100% - 32px));
+  width: min(320px, calc(100% - 32px));
   margin-top: 0;
   background: rgba(10, 16, 22, 0.82);
   backdrop-filter: blur(12px);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
 }
 
-.unitCardOverlayEnemy {
-  left: auto;
-  right: 16px;
+.unitCardOverlaySplit .unitCardColumns {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.unitInfoEnemy {
+  border-left: 1px solid rgba(255, 96, 96, 0.22);
+  padding-left: 10px;
 }
 
 .abilityCardOverlay {
@@ -521,16 +532,15 @@ dd {
     left: 10px;
     right: auto;
     bottom: 10px;
-    width: min(240px, calc(100% - 20px));
-    max-width: 240px;
+    width: min(300px, calc(100% - 20px));
+    max-width: 300px;
     max-height: 24vh;
     overflow: auto;
     padding: 8px 9px;
   }
 
-  .unitCardOverlayEnemy {
-    left: auto;
-    right: 10px;
+  .unitCardOverlaySplit .unitCardColumns {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .abilityCardOverlay {
