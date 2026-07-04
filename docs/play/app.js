@@ -924,16 +924,11 @@ function handlePlayerClick(tile, current) {
   }
 
   if (clickedUnit && clickedUnit.team === "enemy") {
-    const sameTile = Boolean(current.selectedTile && current.selectedTile.x === tile.x && current.selectedTile.y === tile.y);
     state.selectedTile = { x: tile.x, y: tile.y };
     showUnitPanel();
-    if (selected && sameTile && canPlayerAttackTarget(current, clickedUnit)) {
-      attackUnit(selected, clickedUnit);
-      state.moveOrigin = null;
-      state.message = `${selected.job} が ${clickedUnit.job} を攻撃`;
-    } else {
-      state.message = `${clickedUnit.job} を確認`;
-    }
+    state.message = canPlayerAttackTarget(current, clickedUnit)
+      ? `${clickedUnit.job} を確認 / 攻撃可能`
+      : `${clickedUnit.job} を確認`;
     return;
   }
 
@@ -1185,8 +1180,8 @@ function shadeColor(hex, percent) {
 
 function overlayColor(key, current, overlays) {
   if (current.selectedTileKey === key) return "rgba(255, 214, 102, 0.24)";
-  if (overlays.attack.has(key)) return "rgba(255, 103, 103, 0.24)";
-  if (overlays.move.has(key)) return "rgba(89, 177, 255, 0.28)";
+  if (overlays.attack.has(key)) return "rgba(255, 88, 88, 0.42)";
+  if (overlays.move.has(key)) return "rgba(89, 177, 255, 0.20)";
   return null;
 }
 
@@ -1226,6 +1221,13 @@ function drawTopDownTile(tile, pos, current, overlays) {
   if (overlay) {
     ctx.fillStyle = overlay;
     ctx.fillRect(top.x, top.y, size, size);
+  }
+
+  if (overlays.attack.has(key)) {
+    ctx.strokeStyle = "rgba(255, 92, 92, 0.9)";
+    ctx.lineWidth = Math.max(1, 2 * zoom);
+    ctx.strokeRect(top.x + 1, top.y + 1, size - 2, size - 2);
+    ctx.lineWidth = 1;
   }
 
   ctx.strokeStyle = tileStroke(tile);
@@ -1321,6 +1323,19 @@ function drawIsoTile(tile, pos, current, overlays) {
     }
     ctx.closePath();
     ctx.fill();
+  }
+
+  if (overlays.attack.has(key)) {
+    ctx.strokeStyle = "rgba(255, 92, 92, 0.9)";
+    ctx.lineWidth = Math.max(1, 2 * zoom);
+    ctx.beginPath();
+    ctx.moveTo(polygon[0].x, polygon[0].y);
+    for (let i = 1; i < polygon.length; i += 1) {
+      ctx.lineTo(polygon[i].x, polygon[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.lineWidth = 1;
   }
 
   ctx.beginPath();
@@ -1521,12 +1536,19 @@ function renderUnitPanel(current) {
     unitInfo.appendChild(enemySummary);
   }
 
-  if (unit && unit.team === "enemy" && canPlayerAttackTarget(current, unit)) {
+  if (unit && unit.team === "enemy") {
     const attackButton = document.createElement("button");
     attackButton.type = "button";
     attackButton.className = "primary";
-    attackButton.textContent = "攻撃";
+    const attackable = canPlayerAttackTarget(current, unit);
+    attackButton.textContent = attackable ? "攻撃" : "攻撃不可";
+    attackButton.disabled = !attackable;
     attackButton.addEventListener("click", () => {
+      if (!attackable) {
+        state.message = "攻撃範囲外です";
+        safeRender();
+        return;
+      }
       if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
         bridge.instance.attack_selected();
         safeRender();

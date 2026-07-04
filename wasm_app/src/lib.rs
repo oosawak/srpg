@@ -357,10 +357,12 @@ impl GameState {
             if unit.team == Team::Player {
                 self.selected_unit_id = Some(unit.id);
                 self.message = format!("{} を選択", job_label(unit.job));
-            } else if self.can_attack_selected_tile() {
-                self.attack_selected_tile();
             } else {
-                self.message = format!("{} を確認", job_label(unit.job));
+                self.message = if self.can_attack_selected_tile() {
+                    format!("{} を確認 / 攻撃可能", job_label(unit.job))
+                } else {
+                    format!("{} を確認", job_label(unit.job))
+                };
             }
             return;
         }
