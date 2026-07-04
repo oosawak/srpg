@@ -732,6 +732,23 @@ function attackSelectedTarget(current = state) {
   return true;
 }
 
+function attackEnemyTarget(target, current = state) {
+  const attacker = selectedPlayerUnit(current);
+  if (!attacker || !target || target.team !== "enemy") return false;
+  if (!canPlayerAttackTarget(current, target)) {
+    state.message = "攻撃範囲外です";
+    safeRender();
+    return false;
+  }
+
+  attackUnit(attacker, target);
+  state.selectedTile = { x: target.x, y: target.y };
+  state.moveOrigin = null;
+  state.interactionMode = null;
+  safeRender();
+  return true;
+}
+
 function abilitiesForUnit(unit, current = state) {
   if (!unit) return [];
   if (Array.isArray(current.abilities) && current.abilities.length > 0 && unit.team === "player") {
@@ -996,6 +1013,29 @@ function handleCanvasPoint(point, current, meta = {}) {
       debugLog("canvas long press entered move mode locally");
       safeRender();
       return;
+    }
+
+    if (meta.longPress && hitUnit.unit.team === "enemy" && current.phase === "player") {
+      showUnitPanel();
+      state.selectedTile = { x: hitUnit.tileX, y: hitUnit.tileY };
+      if (bridge.useWasm && bridge.instance) {
+        if (typeof bridge.instance.click_tile === "function") {
+          bridge.instance.click_tile(hitUnit.tileX, hitUnit.tileY);
+        }
+        if (typeof bridge.instance.attack_selected === "function") {
+          bridge.instance.attack_selected();
+        }
+        debugLog("canvas long press attacked enemy via wasm");
+        safeRender();
+        return;
+      }
+
+      if (canPlayerAttackTarget(state, hitUnit.unit)) {
+        attackEnemyTarget(hitUnit.unit, state);
+        debugLog("canvas long press attacked enemy locally");
+        safeRender();
+        return;
+      }
     }
 
     if (bridge.useWasm && bridge.instance) {
@@ -1481,6 +1521,34 @@ function renderUnitPanel(current) {
   unitInfo.innerHTML = "";
   unitActions.innerHTML = "";
 
+  if (unit && unit.team === "enemy") {
+    const attackButton = document.createElement("button");
+    attackButton.type = "button";
+    attackButton.className = "primary";
+    const attackable = canPlayerAttackTarget(current, unit);
+    attackButton.textContent = "攻撃";
+    attackButton.disabled = !attackable;
+    attackButton.title = attackable ? "射程内の敵を攻撃します" : "射程外です";
+    attackButton.addEventListener("click", () => {
+      if (!attackable) {
+        state.message = "攻撃範囲外です";
+        safeRender();
+        return;
+      }
+      state.selectedTile = { x: unit.x, y: unit.y };
+      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
+        if (typeof bridge.instance.click_tile === "function") {
+          bridge.instance.click_tile(unit.x, unit.y);
+        }
+        bridge.instance.attack_selected();
+        safeRender();
+        return;
+      }
+      attackEnemyTarget(unit, state);
+    });
+    unitInfo.appendChild(attackButton);
+  }
+
   if (!unit) {
     const empty = document.createElement("div");
     empty.className = "statusLine";
@@ -1534,30 +1602,6 @@ function renderUnitPanel(current) {
     enemySummary.className = "unitInfoBody";
     enemySummary.textContent = `敵軍 / HP ${unit.hp}/${unit.maxHp} / 位置 ${unit.x}, ${unit.y}${canPlayerAttackTarget(current, unit) ? " / 攻撃可能" : " / 射程外"}`;
     unitInfo.appendChild(enemySummary);
-  }
-
-  if (unit && unit.team === "enemy") {
-    const attackButton = document.createElement("button");
-    attackButton.type = "button";
-    attackButton.className = "primary";
-    const attackable = canPlayerAttackTarget(current, unit);
-    attackButton.textContent = "攻撃";
-    attackButton.disabled = !attackable;
-    attackButton.title = attackable ? "射程内の敵を攻撃します" : "射程外です";
-    attackButton.addEventListener("click", () => {
-      if (!attackable) {
-        state.message = "攻撃範囲外です";
-        safeRender();
-        return;
-      }
-      if (bridge.useWasm && bridge.instance && typeof bridge.instance.attack_selected === "function") {
-        bridge.instance.attack_selected();
-        safeRender();
-        return;
-      }
-      attackSelectedTarget(state);
-    });
-    unitActions.prepend(attackButton);
   }
 
   if (!unit || unit.team !== "player") {
