@@ -173,6 +173,8 @@ body{
 .card .noimg{height:130px;display:flex;align-items:center;justify-content:center;
   font-family:'Shippori Mincho B1',serif;font-size:44px;color:var(--purple);opacity:.7}
 
+.srpg-canvas{display:block;width:100%;height:auto;border:2px solid var(--ink);background:#fff}
+
 /* エピローグ・フッター */
 .ending{padding:70px 24px 90px;text-align:center;color:var(--snow)}
 .ending .fin{font-family:'Shippori Mincho B1',serif;font-size:34px;letter-spacing:.3em;
@@ -375,6 +377,10 @@ body{
     <div class="sfx big">「俺に続け――っ!!」</div>
     <div class="stage"><img class="l charge" src="tokimune.png" alt="突撃する時宗丸"></div>
     <div class="narr" style="text-align:left">時宗丸は雪を蹴り、猛烈な勢いで南側の強風の中へと突っ込んでいった。快活な声を響かせながら、向かい風を切り裂いて猛進する。</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <canvas id="srpgCanvas" class="srpg-canvas" width="960" height="540" aria-label="srpg canvas"></canvas>
   </div>
 
   <div class="panel reveal bg-dusk">
