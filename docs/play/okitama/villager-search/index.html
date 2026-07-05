@@ -10,12 +10,12 @@
 <link rel="stylesheet" href="../../engine.css">
 <style>
 :root {
-  --bg: #f6efe8;
-  --bg-accent: #f3d6dc;
-  --panel: rgba(255, 255, 255, 0.72);
-  --panel-border: rgba(169, 127, 119, 0.18);
-  --text: #5e4039;
-  --muted: rgba(94, 64, 57, 0.62);
+  --bg: #edf4fb;
+  --bg-accent: #d9e9f8;
+  --panel: rgba(255, 255, 255, 0.76);
+  --panel-border: rgba(116, 146, 182, 0.18);
+  --text: #3f5872;
+  --muted: rgba(63, 88, 114, 0.66);
   --pink: #f27ca4;
   --green: #a7d8a0;
   --amber: #ffbf54;
@@ -30,21 +30,38 @@ body {
   font-family: var(--engine-font, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif);
   color: var(--text);
   background:
-    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.78), transparent 20%),
-    radial-gradient(circle at 82% 16%, rgba(255, 226, 175, 0.42), transparent 18%),
-    radial-gradient(circle at 50% 100%, rgba(107, 174, 255, 0.20), transparent 34%),
-    linear-gradient(180deg, #fbf7f2 0%, #f7efe7 45%, #f4e6e3 100%);
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.86), transparent 20%),
+    radial-gradient(circle at 82% 16%, rgba(214, 234, 255, 0.56), transparent 18%),
+    radial-gradient(circle at 50% 100%, rgba(139, 187, 232, 0.24), transparent 34%),
+    linear-gradient(180deg, #f7fbff 0%, #edf5fc 46%, #e3eef8 100%);
   overflow: hidden;
 }
 main {
   width: 100%;
-  height: 100vh;
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto auto auto;
   align-content: start;
-  gap: 10px;
-  padding: 16px 14px 12px;
+  gap: 8px;
+  padding: 12px 12px 10px;
+}
+.title-line {
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto -2px;
+  text-align: center;
+  font-size: clamp(1.12rem, 3vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #355b78;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.85);
+}
+.top-note {
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto;
+  color: rgba(53, 91, 120, 0.74);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  padding: 0 2px;
 }
 .shell {
   width: min(560px, calc(100vw - 28px));
@@ -66,9 +83,15 @@ main {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: min(560px, calc(100vw - 28px));
   margin: 0 auto;
+}
+.hud-center {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
 }
 .hud-right {
   display: flex;
@@ -77,20 +100,18 @@ main {
   margin-left: auto;
 }
 .music-btn {
-  width: 38px;
-  height: 38px;
-  font-size: 0.95rem;
+  display: none;
 }
 .hud-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 999px;
   background: rgba(255,255,255,0.84);
   border: 1px solid rgba(169, 127, 119, 0.10);
   box-shadow: 0 10px 24px rgba(130, 98, 90, 0.10);
-  font-size: 0.92rem;
+  font-size: 0.84rem;
 }
 .hud-pill strong {
   font-weight: 800;
@@ -101,24 +122,22 @@ main {
   font-size: 1.02rem;
 }
 .rules {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  justify-content: center;
   gap: 8px;
   width: min(560px, calc(100vw - 28px));
   margin: 0 auto;
-  height: 44px;
-  overflow: hidden;
 }
 .rule {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-radius: 14px;
   background: rgba(255,255,255,0.88);
   border: 1px solid rgba(169, 127, 119, 0.08);
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   box-shadow: 0 8px 18px rgba(130, 98, 90, 0.08);
   white-space: nowrap;
   overflow: hidden;
@@ -197,8 +216,10 @@ canvas {
 .controls {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 button.control {
   appearance: none;
@@ -212,9 +233,9 @@ button.control {
   box-shadow: 0 10px 20px rgba(130, 98, 90, 0.08);
 }
 button.control.new-layout {
-  width: 102px;
+  width: 104px;
   padding: 9px 10px;
-  line-height: 1.02;
+  line-height: 1;
 }
 .status {
   color: var(--muted);
@@ -222,118 +243,51 @@ button.control.new-layout {
   line-height: 1.35;
   min-height: 1.4em;
 }
-.howto {
-  color: rgba(94, 64, 57, 0.76);
-  font-size: 0.8rem;
-  line-height: 1.45;
-  margin-top: -2px;
-  padding: 0 2px;
+.status-below {
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto;
+  text-align: center;
 }
 .status strong {
   color: var(--good);
 }
-.bottom-banner {
-  position: relative;
-  width: min(560px, calc(100vw - 28px));
-  margin: 0 auto 2px;
-  padding: 12px 16px 10px;
-  border-radius: 28px;
-  background: linear-gradient(180deg, #95ccff 0%, #74b5ef 100%);
-  box-shadow: 0 -16px 24px rgba(120, 164, 217, 0.24) inset;
-  overflow: hidden;
-  min-height: 64px;
-}
-.bottom-banner::before {
-  content: "";
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  width: 100px;
-  height: 28px;
-  transform: translateX(-50%);
-  background:
-    radial-gradient(circle at 25% 65%, #74b5ef 0 14px, transparent 15px),
-    radial-gradient(circle at 75% 65%, #74b5ef 0 14px, transparent 15px),
-    linear-gradient(180deg, #95ccff, #74b5ef);
-  border-radius: 0 0 50px 50px;
-}
-.banner-animal {
-  position: absolute;
-  left: 50%;
-  top: -4px;
-  width: 58px;
-  height: 28px;
-  transform: translateX(-50%);
-  border-radius: 14px 14px 10px 10px;
-  background: rgba(255,255,255,0.18);
-  filter: blur(0.2px);
-}
-.bottom-banner h3 {
-  margin: 8px 0 0;
-  text-align: center;
-  color: rgba(255,255,255,0.98);
-  font-size: clamp(1.1rem, 3vw, 1.55rem);
-  text-shadow: 0 4px 10px rgba(76, 132, 184, 0.30);
-  letter-spacing: 0.08em;
-}
-.bottom-banner p {
-  margin: 2px 0 0;
-  text-align: center;
-  color: rgba(255,255,255,0.88);
-  font-size: 0.74rem;
-}
 @media (max-width: 640px) {
   body { overflow: hidden; }
-  main { min-height: 100vh; height: 100vh; }
+  main { min-height: 100vh; }
   .stage {
     gap: 10px;
   }
-  .rules {
-    width: min(560px, calc(100vw - 28px));
-    height: 36px;
-    gap: 6px;
-  }
+  .rules { gap: 6px; }
   .rule {
-    padding: 6px 8px;
-    font-size: 0.72rem;
+    padding: 6px 10px;
+    font-size: 0.74rem;
     border-radius: 12px;
   }
-  .bottom-banner { min-height: 58px; padding-top: 10px; }
 }
 </style>
 </head>
 <body>
 <main>
-  <div class="bottom-banner">
-    <div class="banner-animal" aria-hidden="true"></div>
-    <h3>レベル 1</h3>
-    <p>短いタップで×、長押しで村人の子供を表示</p>
-  </div>
-
+  <div class="title-line">雪の中から、村人を探せ！！</div>
+  <div class="top-note">短いタップで×、長押しで村人の子供を表示。やり直しで最初から、手がかりで見つける場所の目安が出ます。</div>
   <div class="hud">
     <div class="hud-pill"><strong>❄️</strong> <span id="progress">0/5</span></div>
+    <div class="hud-center">
+      <div class="rule active">1区画1人 / 各行各列1人 / 隣接不可</div>
+    </div>
     <div class="hud-right">
       <div class="hud-pill hearts" id="hearts">❤️❤️❤️</div>
-      <button class="icon-btn music-btn" id="btn-music" aria-label="music">▶</button>
     </div>
-  </div>
-
-  <div class="rules">
-    <div class="rule active">1エリアにつき1人</div>
-    <div class="rule active">各列・各行に1人</div>
-    <div class="rule active">村人同士は隣接不可</div>
   </div>
 
   <section class="stage">
     <div class="status-row">
       <div class="controls">
-        <button class="control" id="btn-reset">Reset</button>
-        <button class="control" id="btn-check">Check</button>
-        <button class="control" id="btn-hint">Hint</button>
-        <button class="control new-layout" id="btn-new"><span>New<br>Layout</span></button>
+        <button class="control" id="btn-reset">やり直し</button>
+        <button class="control" id="btn-check">確認</button>
+        <button class="control" id="btn-hint">手がかり</button>
+        <button class="control new-layout" id="btn-new">LV変更</button>
       </div>
-      <div class="howto">短いタップで×、長押しで村人の子供を表示。Reset でやり直し、Hint で見つける場所の手掛かりが出ます。</div>
-      <div class="status" id="status">村人の子供を探しています…</div>
     </div>
 
     <div class="board-shell" id="board-shell">
@@ -345,6 +299,8 @@ button.control.new-layout {
         </div>
       </div>
     </div>
+
+    <div class="status status-below" id="status">村人の子供を探しています…</div>
   </section>
 </main>
 
@@ -525,15 +481,11 @@ function resizeCanvas() {
   const rect = shell.getBoundingClientRect();
   const topbar = document.querySelector('.topbar')?.getBoundingClientRect();
   const hud = document.querySelector('.hud')?.getBoundingClientRect();
-  const rules = document.querySelector('.rules')?.getBoundingClientRect();
   const statusRow = document.querySelector('.status-row')?.getBoundingClientRect();
-  const banner = document.querySelector('.bottom-banner')?.getBoundingClientRect();
   const verticalBudget = window.innerHeight
     - (topbar?.height || 0)
     - (hud?.height || 0)
-    - (rules?.height || 0)
     - (statusRow?.height || 0)
-    - (banner?.height || 0)
     - 16 * 2
     - 12 * 4;
   const widthBudget = Math.floor(rect.width - 28);
@@ -891,7 +843,7 @@ function resetPuzzle() {
   overlay.classList.remove('show');
   clearTimers();
   syncHud();
-  setStatus('もう一度やってみよう', 'Reset');
+  setStatus('もう一度やってみよう', 'やり直し');
 }
 
 function applyPuzzleSpec(spec) {
@@ -907,7 +859,6 @@ function applyPuzzleSpec(spec) {
   zonesData = Uint8Array.from(spec.zones ?? []);
   solution = Uint8Array.from(spec.solution ?? []);
   currentVillager = VILLAGERS[(spec.animal_kind ?? 0) % VILLAGERS.length];
-  document.querySelector('.bottom-banner h3').textContent = `レベル ${currentDifficulty} / ${currentBoardSize}×${currentBoardSize}`;
 
   wasm.animal_puzzle_set_zones(zonesData);
   wasm.animal_puzzle_set_solution(solution);
@@ -1035,33 +986,19 @@ canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
 window.addEventListener('resize', resizeCanvas);
 
-document.getElementById('btn-music').addEventListener('click', () => {
-  musicPlaying = !musicPlaying;
-  document.getElementById('btn-music').textContent = musicPlaying ? '⏸' : '▶';
-  if (musicPlaying) {
-    startMusic().catch(() => {
-      musicPlaying = false;
-      document.getElementById('btn-music').textContent = '▶';
-      setStatus('BGM を開始できませんでした', 'audio');
-    });
-  } else {
-    stopMusic();
-  }
-  setStatus(musicPlaying ? 'BGM 再生' : 'BGM 停止', musicPlaying ? 'ON' : 'OFF');
-});
 document.getElementById('btn-reset').addEventListener('click', resetPuzzle);
 document.getElementById('btn-check').addEventListener('click', () => {
   updateSolvedState();
   setStatus(
-    solved ? 'Solved!' : `${revealCount}/${currentBoardSize} だよ`,
-    solved ? 'Complete' : '続けよう',
+    solved ? '見つかりました！' : `${revealCount}/${currentBoardSize} だよ`,
+    solved ? 'クリア' : '続けよう',
   );
 });
 document.getElementById('btn-hint').addEventListener('click', useHint);
 document.getElementById('btn-new').addEventListener('click', () => {
   const nextDifficulty = currentDifficulty >= 3 ? 1 : currentDifficulty + 1;
   loadPuzzle(nextDifficulty);
-  setStatus('新しい盤面を作ったよ', `Lv ${nextDifficulty} / ${currentBoardSize}×${currentBoardSize}`);
+  setStatus('新しい盤面を作ったよ', `レベル ${nextDifficulty} / ${currentBoardSize}×${currentBoardSize}`);
 });
 
 async function start() {
@@ -1071,7 +1008,6 @@ async function start() {
     resizeCanvas();
     revealCount = wasm.animal_puzzle_count();
     syncHud();
-    setStatus('短いタップで×、長押しで村人の子供を表示', `Lv ${currentDifficulty} / ${currentBoardSize}×${currentBoardSize}`);
     running = true;
     const loop = (now) => {
       if (!running) return;
