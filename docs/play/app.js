@@ -1,30 +1,36 @@
-const canvas = document.getElementById("mapCanvas");
+const srpgRoot = window.srpgMountRoot ?? document;
+const srpgHost = typeof ShadowRoot !== "undefined" && srpgRoot instanceof ShadowRoot ? srpgRoot.host : null;
+function rootQuery(selector) {
+  return srpgRoot.querySelector(selector);
+}
+
+const canvas = rootQuery("#mapCanvas");
 const ctx = canvas.getContext("2d");
-const toggleViewButton = document.getElementById("toggleView");
-const zoomOutButton = document.getElementById("zoomOut");
-const zoomResetButton = document.getElementById("zoomReset");
-const zoomInButton = document.getElementById("zoomIn");
-const zoomRange = document.getElementById("zoomRange");
-const zoomLabel = document.getElementById("zoomLabel");
-const endTurnButton = document.getElementById("endTurn");
-const resetViewButton = document.getElementById("resetView");
-const viewName = document.getElementById("viewName");
-const turnNumber = document.getElementById("turnNumber");
-const phaseName = document.getElementById("phaseName");
-const selectedUnit = document.getElementById("selectedUnit");
-const unitCount = document.getElementById("unitCount");
-const abilityList = document.getElementById("abilityList");
-const unitInfo = document.getElementById("unitInfo");
-const enemyUnitInfo = document.getElementById("enemyUnitInfo");
-const enemyUnitCardOverlay = document.getElementById("enemyUnitCardOverlay");
-const enemyUnitActions = document.getElementById("enemyUnitActions");
-const enemyUnitPanelClose = document.getElementById("enemyUnitPanelClose");
-const unitActions = document.getElementById("unitActions");
-const unitCardOverlay = document.querySelector(".unitCardOverlay");
-const attackFxOverlay = document.getElementById("attackFxOverlay");
-const unitPanelClose = document.getElementById("unitPanelClose");
-const bootStatus = document.getElementById("bootStatus");
-const inputProbe = document.getElementById("inputProbe");
+const toggleViewButton = rootQuery("#toggleView");
+const zoomOutButton = rootQuery("#zoomOut");
+const zoomResetButton = rootQuery("#zoomReset");
+const zoomInButton = rootQuery("#zoomIn");
+const zoomRange = rootQuery("#zoomRange");
+const zoomLabel = rootQuery("#zoomLabel");
+const endTurnButton = rootQuery("#endTurn");
+const resetViewButton = rootQuery("#resetView");
+const viewName = rootQuery("#viewName");
+const turnNumber = rootQuery("#turnNumber");
+const phaseName = rootQuery("#phaseName");
+const selectedUnit = rootQuery("#selectedUnit");
+const unitCount = rootQuery("#unitCount");
+const abilityList = rootQuery("#abilityList");
+const unitInfo = rootQuery("#unitInfo");
+const enemyUnitInfo = rootQuery("#enemyUnitInfo");
+const enemyUnitCardOverlay = rootQuery("#enemyUnitCardOverlay");
+const enemyUnitActions = rootQuery("#enemyUnitActions");
+const enemyUnitPanelClose = rootQuery("#enemyUnitPanelClose");
+const unitActions = rootQuery("#unitActions");
+const unitCardOverlay = rootQuery(".unitCardOverlay");
+const attackFxOverlay = rootQuery("#attackFxOverlay");
+const unitPanelClose = rootQuery("#unitPanelClose");
+const bootStatus = rootQuery("#bootStatus");
+const inputProbe = rootQuery("#inputProbe");
 const statusLine = document.createElement("p");
 
 const TILE_SIZE = 72;
@@ -39,8 +45,14 @@ const COLORS = {
 };
 
 statusLine.className = "statusLine";
-document.querySelector(".panel").appendChild(statusLine);
+rootQuery(".panel").appendChild(statusLine);
 if (bootStatus) bootStatus.textContent = "boot: app.js loaded";
+
+function eventInsideSrpg(event) {
+  if (srpgRoot === document) return true;
+  const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+  return path.includes(canvas) || (srpgHost ? path.includes(srpgHost) : false);
+}
 
 const bridge = {
   useWasm: false,
@@ -2213,6 +2225,7 @@ window.addEventListener("resize", safeRender);
 
 window.addEventListener("keydown", (event) => {
   try {
+    if (!eventInsideSrpg(event)) return;
     if (event.key === "Escape") {
       if (getCurrentState().interactionMode === "move") {
         if (bridge.useWasm && bridge.instance && typeof bridge.instance.cancel_move === "function") {
@@ -2272,6 +2285,7 @@ window.addEventListener("unhandledrejection", (event) => {
 window.addEventListener(
   "pointerdown",
   (event) => {
+    if (!eventInsideSrpg(event)) return;
     const target = describeTarget(event);
     markInput(`window:${event.type} on ${target}`);
     debugLog("window pointerdown", { target });
@@ -2282,6 +2296,7 @@ window.addEventListener(
 window.addEventListener(
   "click",
   (event) => {
+    if (!eventInsideSrpg(event)) return;
     const target = describeTarget(event);
     markInput(`window:${event.type} on ${target}`);
     debugLog("window click", { target });

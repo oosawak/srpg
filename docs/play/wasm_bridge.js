@@ -1,7 +1,9 @@
 const decoder = new TextDecoder();
+const bridgeScriptUrl = document.currentScript?.src ?? window.location.href;
 
 async function loadWasm() {
-  const response = await fetch("./wasm/wasm_app.wasm");
+  const wasmUrl = new URL("./wasm/wasm_app.wasm", bridgeScriptUrl);
+  const response = await fetch(wasmUrl);
   if (!response.ok) {
     throw new Error(`failed to load wasm: ${response.status}`);
   }

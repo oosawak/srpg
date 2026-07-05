@@ -173,15 +173,13 @@ body{
 .card .noimg{height:130px;display:flex;align-items:center;justify-content:center;
   font-family:'Shippori Mincho B1',serif;font-size:44px;color:var(--purple);opacity:.7}
 
-.srpg-frame{
+.srpg-mount{
   display:block;
   width:100%;
-  height:min(72vh, 680px);
-  border:2px solid var(--ink);
-  background:#fff;
+  min-height:min(72vh, 680px);
 }
 @media (max-width: 640px){
-  .srpg-frame{height:min(78vh, 620px)}
+  .srpg-mount{min-height:min(78vh, 620px)}
 }
 
 /* エピローグ・フッター */
@@ -389,14 +387,131 @@ body{
   </div>
 
   <div class="panel reveal bg-dusk">
-    <iframe
-      id="srpgFrame"
-      class="srpg-frame"
-      src="../index.html"
-      title="現在作成中の SRPG"
-      loading="lazy"
-    ></iframe>
+    <div id="srpgMount" class="srpg-mount" aria-label="現在作成中の SRPG"></div>
   </div>
+
+  <template id="srpgTemplate">
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">SRPG prototype</p>
+          <h1>戦国タクティクス・マップビュー</h1>
+          <p class="lede">
+            斜め見下ろしと、真上 2D を切り替えられる戦国 SRPG の試作です。
+          </p>
+        </div>
+        <div class="toolbar">
+          <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
+          <button id="zoomOut" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomOut()">縮小</button>
+          <button id="zoomReset" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomReset()">標準</button>
+          <button id="zoomIn" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomIn()">拡大</button>
+          <label class="zoomControl" for="zoomRange">
+            <span id="zoomLabel">90%</span>
+            <input id="zoomRange" type="range" min="30" max="200" step="5" value="75" />
+          </label>
+          <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
+          <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
+        </div>
+      </section>
+
+      <section class="board">
+        <div class="canvasWrap">
+          <div class="unitCard unitCardOverlay">
+            <h3 class="unitCardHeader">
+              <span>ユニット情報</span>
+              <button id="unitPanelClose" class="unitPanelClose" type="button" aria-label="情報ウィンドウを閉じる">✕</button>
+            </h3>
+            <div id="unitInfo" class="unitInfo">ユニットをクリックしてください</div>
+            <div id="unitActions" class="unitActions"></div>
+          </div>
+          <div class="unitCard enemyCardOverlay" id="enemyUnitCardOverlay" hidden>
+            <h3 class="unitCardHeader">
+              <span>敵ユニット</span>
+              <button id="enemyUnitPanelClose" class="unitPanelClose" type="button" aria-label="敵ユニット情報を閉じる">✕</button>
+            </h3>
+            <div id="enemyUnitInfo" class="unitInfo"></div>
+            <div id="enemyUnitActions" class="unitActions"></div>
+          </div>
+          <div id="attackFxOverlay" class="attackFxOverlay" hidden></div>
+          <div class="unitCard abilityCardOverlay">
+            <h3>アビリティ</h3>
+            <div id="abilityList" class="abilityList"></div>
+          </div>
+          <canvas id="mapCanvas" width="960" height="720" aria-label="map view"></canvas>
+        </div>
+
+        <aside class="panel">
+          <div id="bootStatus" class="bootStatus">booting...</div>
+          <div id="inputProbe" class="bootStatus">input: none</div>
+          <h2>状態</h2>
+          <dl class="stats">
+            <div><dt>表示</dt><dd id="viewName">isometric</dd></div>
+            <div><dt>ターン</dt><dd id="turnNumber">1</dd></div>
+            <div><dt>フェーズ</dt><dd id="phaseName">player</dd></div>
+            <div><dt>選択</dt><dd id="selectedUnit">なし</dd></div>
+            <div><dt>部隊数</dt><dd id="unitCount">2</dd></div>
+            <div><dt>地形</dt><dd>山城 / 城下町 / 田んぼ / 段々畑</dd></div>
+          </dl>
+
+          <div class="legend">
+            <h3>凡例</h3>
+            <ul>
+              <li><span class="swatch plain"></span>平地</li>
+              <li><span class="swatch castle"></span>城</li>
+              <li><span class="swatch town"></span>城下町</li>
+              <li><span class="swatch rice"></span>田んぼ</li>
+              <li><span class="swatch terrace"></span>段々畑</li>
+              <li><span class="swatch road"></span>道</li>
+            </ul>
+          </div>
+
+          <div class="help">
+            <h3>操作</h3>
+            <ul>
+              <li>自軍ユニットをクリックして選択</li>
+              <li>青いマスをクリックで移動</li>
+              <li>赤い敵をクリックで攻撃</li>
+              <li>ターン終了で敵 AI を進める</li>
+            </ul>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </template>
+
+  <script>
+    (() => {
+      const host = document.getElementById("srpgMount");
+      const template = document.getElementById("srpgTemplate");
+      if (!host || !template || typeof host.attachShadow !== "function") return;
+
+      const shadowRoot = host.attachShadow({ mode: "open" });
+      const style = document.createElement("link");
+      style.rel = "stylesheet";
+      style.href = "../style.css";
+      shadowRoot.append(style, template.content.cloneNode(true));
+      window.srpgMountRoot = shadowRoot;
+
+      const appendScript = (src, onload) => {
+        const script = document.createElement("script");
+        script.src = src;
+        if (typeof onload === "function") {
+          script.addEventListener("load", onload, { once: true });
+        }
+        document.body.appendChild(script);
+      };
+
+      style.addEventListener(
+        "load",
+        () => {
+          appendScript("../wasm_bridge.js", () => {
+            appendScript("../app.js");
+          });
+        },
+        { once: true }
+      );
+    })();
+  </script>
 
   <div class="panel reveal bg-dusk">
     <div class="b mob left"><span class="who">敵兵</span><br>あいつ、正気か！？</div>
