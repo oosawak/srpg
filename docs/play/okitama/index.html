@@ -393,7 +393,7 @@ body{
   <template id="srpgTemplate">
     <style>
       .shell.srpg-compact {
-        width: min(980px, calc(100vw - 24px));
+        width: min(860px, calc(100vw - 20px));
         padding: 0;
       }
 
@@ -407,6 +407,7 @@ body{
       }
 
       .shell.srpg-compact .canvasWrap {
+        width: 100%;
         min-height: min(52vh, 500px);
         border-radius: 18px;
       }
@@ -424,6 +425,10 @@ body{
       .shell.srpg-compact .toolbar button {
         padding: 9px 12px;
         font-size: 12px;
+      }
+
+      .shell.srpg-compact canvas {
+        max-width: 100%;
       }
 
       .shell.srpg-compact .zoomControl {
