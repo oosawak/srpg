@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>❄️ 置賜雪合戦紀</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#16233F; --deep:#0E1728; --snow:#F4F7FB; --lantern:#E8944A;
+  --ink:#000;
+  --red:#B14A3C; --green:#3E6B54; --white-c:#8FA3B8; --purple:#6B5B8C;
+  --paper:#FDFBF7;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN',sans-serif;
+  background:var(--deep); color:var(--ink);
+}
+.wrap{max-width:520px;margin:0 auto;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,
+    #0E1728 0%, #16233F 8%,          /* 夜：プロローグ */
+    #1B2E52 22%, #2A4468 30%,        /* 深夜：作戦会議 */
+    #7FA8C9 38%, #C9DEEC 44%,        /* 夜明け→朝 */
+    #DDEBF5 58%, #C2D8E8 70%,        /* 昼：合戦 */
+    #E8C9A8 84%, #B4784E 92%, #16233F 100%); /* 夕暮れ→夜 */
+}
+
+/* ── 雪 ── */
+.snowlayer{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
+.flake{position:absolute;top:-4vh;color:#fff;opacity:.75;user-select:none;
+  animation:fall linear infinite}
+@keyframes fall{
+  0%{transform:translateY(-4vh) translateX(0) rotate(0)}
+  100%{transform:translateY(104vh) translateX(6vw) rotate(180deg)}
+}
+@media (prefers-reduced-motion: reduce){
+  .flake{animation:none;display:none}
+  .reveal{opacity:1 !important;transform:none !important}
+}
+
+/* ── タイトル ── */
+.title-screen{min-height:92vh;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;text-align:center;padding:40px 24px;position:relative}
+.title-screen .kicker{color:#FFF;letter-spacing:.5em;font-size:12px;margin-bottom:24px;font-weight:700}
+.title-screen h1{
+  font-family:'Shippori Mincho B1',serif;font-weight:800;
+  writing-mode:vertical-rl;font-size:40px;color:var(--snow);
+  letter-spacing:.18em;height:300px;
+  text-shadow:0 0 32px rgba(232,148,74,.45), 0 2px 4px rgba(0,0,0,.6)}
+.title-screen .sub{color:#000;font-size:13px;margin-top:26px;letter-spacing:.2em}
+.lantern-glow{width:120px;height:120px;border-radius:50%;position:absolute;
+  bottom:12vh;background:radial-gradient(circle,rgba(232,148,74,.5),transparent 70%);
+  filter:blur(6px);animation:flicker 3.2s ease-in-out infinite}
+@keyframes flicker{0%,100%{opacity:.8;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+.scrollcue{position:absolute;bottom:5vh;color:#000;font-size:11px;letter-spacing:.3em;
+  animation:cue 1.8s ease-in-out infinite}
+@keyframes cue{0%,100%{transform:translateY(0);opacity:.6}50%{transform:translateY(8px);opacity:1}}
+
+/* ── 章扉（雪灯籠ディバイダー）── */
+.chapter{min-height:52vh;display:flex;flex-direction:column;justify-content:center;
+  align-items:center;padding:60px 20px;position:relative;text-align:center}
+.chapter .lamp{width:14px;height:22px;border-radius:50% 50% 40% 40%;
+  background:radial-gradient(circle at 50% 40%, #FFD9A0, var(--lantern) 70%);
+  box-shadow:0 0 30px 10px rgba(232,148,74,.55);margin-bottom:28px;
+  animation:flicker 2.6s ease-in-out infinite}
+.chapter h2{font-family:'Shippori Mincho B1',serif;font-weight:800;
+  writing-mode:vertical-rl;letter-spacing:.2em;font-size:30px;height:auto;min-height:200px;
+  color:var(--snow);text-shadow:0 0 18px rgba(232,148,74,.35),0 2px 3px rgba(0,0,0,.5)}
+.chapter.light h2{color:#1E3450;text-shadow:0 0 14px rgba(255,255,255,.9)}
+.chapter.light .lamp{box-shadow:0 0 24px 8px rgba(232,148,74,.45)}
+.chapter .quote{margin-top:22px;font-size:13px;color:#000;font-style:normal;
+  font-family:'Shippori Mincho B1',serif;letter-spacing:.1em}
+.chapter.light .quote{color:#3D5878}
+
+/* ── コマ ── */
+.panel{margin:22px 14px;padding:24px 18px 26px;position:relative;
+  background:var(--paper);
+  border:2.5px solid var(--ink);border-radius:4px;
+  box-shadow:6px 6px 0 rgba(20,25,40,.4);background-size:cover;background-position:center}
+.panel::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.88);border-radius:2px;z-index:0;pointer-events:none}
+.panel-content{position:relative;z-index:1}
+
+/* 背景画像 */
+.panel.bg-night{background-image:url('bg_night.png')}
+.panel.bg-dawn{background-image:url('bg_dawn.png')}
+.panel.bg-morning{background-image:url('bg_morning.png')}
+.panel.bg-dusk{background-image:url('bg_dusk.png')}
+.panel.bg-sunset{background-image:url('bg_sunset.png')}
+.panel.dark{background:#FFFFFF;border-color:#333;color:#000}
+.panel.dark::before{background:rgba(29,43,71,.92)}
+.panel.dark::before{background:rgba(29,43,71,.88)}
+
+/* 背景画像適用 */
+.panel.bg-night{background-image:url('bg_night.png')}
+.panel.bg-dawn{background-image:url('bg_dawn.png')}
+.panel.bg-morning{background-image:url('bg_morning.png')}
+.panel.bg-dusk{background-image:url('bg_dusk.png')}
+.panel.bg-sunset{background-image:url('bg_sunset.png')}
+.panel.wide{margin:22px 6px}
+
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.on{opacity:1;transform:translateY(0)}
+
+.narr{font-size:15px;line-height:2;color:#000;padding:16px 18px;margin:12px 0;
+  border-left:6px solid #000;background:#FFFFFF !important;letter-spacing:.04em;font-weight:700;border-radius:4px;position:relative;z-index:10}
+
+/* ダークパネル内のナレーション - 最優先で白 */
+.panel.dark .narr{background:#F5F5F5 !important;color:#555 !important;border-color:#000 !important}
+
+/* キャラ配置 */
+.stage{display:flex;justify-content:center;align-items:flex-end;gap:-20px;margin:14px 0 6px;min-height:150px}
+.stage img{filter:drop-shadow(3px 4px 5px rgba(0,0,0,.28))}
+.stage .s{height:150px}.stage .m{height:200px}.stage .l{height:260px}
+/* 上半身版 */
+.stage .bust{height:140px}.stage .bust.m{height:180px}.stage .bust.l{height:200px}
+/* 顔アップ版 */
+.stage .face{height:100px;align-self:center}.stage .face.m{height:120px}.stage .face.focus{filter:drop-shadow(4px 4px 8px rgba(0,0,0,.35))}
+.stage .flip{transform:scaleX(-1)}
+.stage .charge{animation:charge .5s ease-in-out infinite alternate}
+@keyframes charge{from{transform:translateX(-6px) rotate(-2deg)}to{transform:translateX(6px) rotate(2deg)}}
+.stage .bow{transform:rotate(8deg) translateY(8px)}
+.stage .bow.flip{transform:scaleX(-1) rotate(8deg) translateY(8px)}
+
+/* 吹き出し */
+.b{position:relative;max-width:88%;margin:10px 0;padding:12px 15px;
+  background:#fff;border:2px solid var(--ink);border-radius:14px;
+  font-size:13.5px;line-height:1.8;font-weight:500}
+.b .who{display:inline-block;font-size:10.5px;font-weight:900;letter-spacing:.12em;
+  padding:2px 8px;border-radius:3px;color:#fff;margin-bottom:6px}
+.b.tok{border-color:var(--red)}   .b.tok .who{background:var(--red)}
+.b.sab{border-color:var(--white-c)}.b.sab .who{background:#5A7A99}
+.b.bon{border-color:var(--green)} .b.bon .who{background:var(--green)}
+.b.koj{border-color:var(--purple)}.b.koj .who{background:var(--purple)}
+.b.left{margin-right:auto;border-bottom-left-radius:2px}
+.b.right{margin-left:auto;border-bottom-right-radius:2px}
+.b.shout{font-weight:900;font-size:16px;border-width:3px;
+  border-radius:2px;transform:rotate(-.6deg);
+  box-shadow:3px 3px 0 rgba(0,0,0,.15)}
+/* 心の声 */
+.b.mind{background:transparent;border:2px dashed #8A8A96;color:#222;
+  font-style:normal;border-radius:22px;font-size:12.5px}
+.panel.dark .b.mind{color:#000;border-color:#999}
+/* モブ */
+.b.mob{border-color:#000;background:#F2F2F2;font-size:12.5px}
+.b.mob .who{background:#888}
+
+/* 効果音 */
+.sfx{font-family:'Shippori Mincho B1',serif;font-weight:800;text-align:center;
+  font-size:44px;letter-spacing:.08em;margin:6px 0;
+  color:var(--night);text-shadow:2px 2px 0 rgba(232,148,74,.4);transform:rotate(-3deg)}
+.sfx.big{font-size:58px;color:var(--red);text-shadow:3px 3px 0 #F3D6A8}
+.panel.dark .sfx{color:#000}
+.speedlines{position:absolute;inset:0;pointer-events:none;opacity:.12;border-radius:2px;
+  background:repeating-linear-gradient(90deg,transparent 0 14px,var(--ink) 14px 15px)}
+.impact{position:absolute;inset:0;pointer-events:none;opacity:.1;border-radius:2px;
+  background:repeating-conic-gradient(from 0deg,var(--ink) 0deg 3deg,transparent 3deg 12deg)}
+
+/* キャラ紹介カード */
+.cast{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 4px}
+.card{background:var(--paper);border:2px solid var(--ink);border-radius:4px;
+  padding:14px 12px;text-align:center;box-shadow:4px 4px 0 rgba(20,25,40,.35)}
+.card img{height:130px;filter:drop-shadow(2px 3px 4px rgba(0,0,0,.25))}
+.card h3{font-family:'Shippori Mincho B1',serif;font-size:16px;margin:8px 0 2px}
+.card .role{font-size:10px;color:#fff;display:inline-block;padding:2px 10px;border-radius:10px;margin-bottom:6px;font-weight:700}
+.card p{font-size:11px;line-height:1.7;color:#222;text-align:left}
+.card.tok h3{color:var(--red)}   .card.tok .role{background:var(--red)}
+.card.sab h3{color:#5A7A99}      .card.sab .role{background:#5A7A99}
+.card.bon h3{color:var(--green)} .card.bon .role{background:var(--green)}
+.card.koj h3{color:var(--purple)}.card.koj .role{background:var(--purple)}
+.card .noimg{height:130px;display:flex;align-items:center;justify-content:center;
+  font-family:'Shippori Mincho B1',serif;font-size:44px;color:var(--purple);opacity:.7}
+
+/* エピローグ・フッター */
+.ending{padding:70px 24px 90px;text-align:center;color:var(--snow)}
+.ending .fin{font-family:'Shippori Mincho B1',serif;font-size:34px;letter-spacing:.3em;
+  text-shadow:0 0 24px rgba(232,148,74,.5)}
+.ending p{font-size:12px;color:#000;margin-top:18px;line-height:2;letter-spacing:.12em}
+</style>
+</head>
+<body>
+<div class="snowlayer" id="snow"></div>
+<div class="wrap">
+
+  <!-- ═══ タイトル ═══ -->
+  <section class="title-screen">
+    <div class="lantern-glow"></div>
+    <div class="kicker">戦国・少年雪合戦絵巻</div>
+    <h1>置賜雪合戦紀</h1>
+    <div class="sub">〜 雪灯籠の誓い、風を裂く突撃 〜</div>
+    <div class="scrollcue">▼ 下へ読み進む ▼</div>
+  </section>
+
+  <!-- ═══ 登場人物 ═══ -->
+  <section class="chapter">
+    <div class="lamp"></div>
+    <h2 style="min-height:140px">登場人物</h2>
+  </section>
+
+  <div class="cast reveal">
+    <div class="card tok">
+      <img src="tokimune_bust.png" alt="時宗丸">
+      <h3>時宗丸</h3>
+      <div class="role">直感型・突撃隊長</div>
+      <p>快活で人懐っこい、雪国育ちの少年。野生の勘を頼りに戦線をこじ開ける、圧倒的な突撃力を誇る。（伊達成実）</p>
+    </div>
+    <div class="card sab">
+      <img src="saburo_bust.png" alt="三郎">
+      <h3>三郎</h3>
+      <div class="role">冷静沈着・戦略家</div>
+      <p>雪の硬さ、風向き、地形のすべてを計算に入れる頭脳派。暴走しがちな時宗丸の手綱を握る制御役。（天童頼澄）</p>
+    </div>
+    <div class="card bon">
+      <img src="bontenmaru_bust.png" alt="梵天丸">
+      <h3>梵天丸</h3>
+      <div class="role">小さな大将</div>
+      <p>幼いながら底知れない胆力を持つ負けず嫌い。ここぞという時に決断を下し、敵さえも引きつける器を持つ。（伊達政宗・幼少期）</p>
+    </div>
+    <div class="card koj">
+      <img src="koji_bust.png" alt="片倉小十郎">
+      <h3>片倉小十郎</h3>
+      <div class="role">好敵手</div>
+      <p>近隣の村の子供たちを束ねる、頭の切れる強敵。三人が「伊達の若様」だとは知らず、本気で戦いを挑む。</p>
+    </div>
+  </div>
+
+  <!-- ═══ プロローグ ═══ -->
+  <section class="chapter">
+    <div class="lamp"></div>
+    <h2>序　雪灯籠の願い</h2>
+    <div class="quote" style="color:white">「明日はどうしても勝ちたいんだ」</div>
+  </section>
+
+  <div class="panel dark reveal bg-night">
+    <div class="narr">置賜の冬は静かで厳しい。夕暮れの八幡宮には雪灯籠が並び、橙色の光が真っ白な雪面に揺れていた。</div>
+    <div class="narr">その静けさを破るように――三郎と梵天丸が、時宗丸の前で深々と頭を下げた。</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="stage">
+      <img class="m face focus flip" src="tokimune_face.png" alt="驚く時宗丸">
+      <img class="s bust bow" src="bontenmaru_bust.png" alt="頭を下げる梵天丸">
+      <img class="m bust bow" src="saburo_face.png" alt="頭を下げる三郎">
+    </div>
+    <div class="narr">時宗丸は驚き、思わず目を丸くする。普段は冷静沈着な三郎の瞳に、今は見たこともないような熱が宿っていた。</div>
+    <div class="b sab left"><span class="who">三郎</span><br>時宗丸……頼む。明日の雪合戦、お前の力を貸してくれ。どうしても勝ちたいんだ</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="stage"><img class="m bust" src="bontenmaru_bust.png" alt="拳を握る梵天丸"></div>
+    <div class="narr">梵天丸も小さな拳をギュッと握りしめ、まだ健在な両眸（りょうぼう）を爛々と輝かせて続ける。</div>
+    <div class="b bon left"><span class="who">梵天丸</span><br>相手は小十郎だ。村の子供たちをまとめてるし、強いのは分かっておる。でも……今年こそ勝ちたい。お前の『雪の経験』が必要なんだ</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="stage"><img class="m face focus flip" src="tokimune_face.png" alt="笑う時宗丸"></div>
+    <div class="narr">二人の必死な表情に、時宗丸の胸の奥でじわりと熱いものが広がった。</div>
+    <div class="b mind right"><font color="white">（小十郎か……面白そうな話じゃねえか！）</font></div>
+    <div class="b tok right"><span class="who">時宗丸</span><br>そこまで言うなら、俺も本気で暴れてやるよ！ しょうがないな、今回だけだぞ！</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="narr">三郎と梵天丸の顔がパッと明るくなる。時宗丸は足元の雪を一つ掴むと、ニヤリと不敵に笑ってみせた。</div>
+    <div class="b tok right"><span class="who">時宗丸</span><br>梵天丸が大将なのは変わらない。だけど――明日の戦場で『いつ、どこに突っ込むか』は、俺の直感に任せてもらう。二人とも、それでいいな！</div>
+    <div class="b sab left"><span class="who">三郎</span><br>……ああ。お前の突撃の勢いがあれば、俺たちは負けない</div>
+    <div class="b bon left"><span class="who">梵天丸</span><br>時宗丸がいればな、絶対勝てる！</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="stage">
+      <img class="s" src="saburo_bust.png" alt="三郎">
+      <img class="s" src="bontenmaru_bust.png" alt="梵天丸">
+      <img class="s flip" src="tokimune_bust.png" alt="時宗丸">
+    </div>
+    <div class="narr">雪が静かに降り積もる中、三人の間に確かな絆が生まれつつあった。</div>
+  </div>
+
+  <!-- ═══ 第一章 ═══ -->
+  <section class="chapter">
+    <div class="lamp"></div>
+    <h2>第一章　雪灯籠の下の作戦会議</h2>
+  </section>
+
+  <div class="panel dark reveal bg-night">
+    <div class="narr">夜の境内は静まり返り、雪灯籠の明かりだけが揺れていた。三人は雪の上に棒で即席の地形図を描き、明日の戦いに向けて知恵を絞る。</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="stage"><img class="l" src="saburo_bust.png" alt="雪を確かめる三郎"></div>
+    <div class="narr">三郎は足元の雪を手に取り、その硬さを確かめながら冷静に言った。</div>
+    <div class="b sab left"><span class="who">三郎</span><br>北側は雪が深い。足を取られやすいけど、姿を隠すには向いてる。南側は風が強い。雪玉が流されるから、狙いが難しいな。ここは陣形を崩さず、慎重に行くべきだ</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="stage"><img class="m face focus flip" src="tokimune_face.png" alt="勘を働かせる時宗丸"></div>
+    <div class="narr">時宗丸は地面の図を見つめながら、持ち前の野生の勘を働かせる。</div>
+    <div class="b tok right"><span class="who">時宗丸</span><br>いや、小十郎は頭が切れる。三郎が考えるような『正しい戦術』を読んで、北の深雪に罠を張ってくるはずだ。だったら、それをぶち破る予想外の勢いが必要だな！</div>
+    <div class="b sab left"><span class="who">三郎</span><br>しかし時宗丸、勢いだけで突っ込めば返り討ちだぞ。お前の暴走は俺が止める</div>
+  </div>
+
+  <div class="panel dark reveal bg-night">
+    <div class="stage"><img class="m bust" src="bontenmaru_bust.png" alt="吠える梵天丸"></div>
+    <div class="narr">梵天丸は二人の白熱するやり取りを見ながら、大将らしく腕を組んで不敵に笑う。</div>
+    <div class="b bon left"><span class="who">梵天丸</span><br>三郎が敵の配置を読み、時宗丸がその裏を突いて突撃する。俺はどっしりと構えて、お前たちの道を信じるだけだ。明日は、俺たちが勝つぞ！</div>
+  </div>
+
+  <!-- ═══ 第二章 ═══ -->
+  <section class="chapter light">
+    <div class="lamp"></div>
+    <h2>第二章　雪合戦奉納の朝</h2>
+  </section>
+
+  <div class="panel reveal bg-morning">
+    <div class="narr">翌朝。境内には子供たちの活気ある歓声が響き渡り、いくつもの雪の砦が築かれていた。</div>
+    <div class="narr">白い息を吐きながら、敵陣の最前線に堂々と立っているのは――片倉小十郎。その佇まいは、幼いながらもまるで一国の武将のようだった。</div>
+    <div class="b koj left"><span class="who">小十郎</span><br>お前たち、今年も相手になろう。そう簡単には突破させませんよ</div>
+    <div class="narr">小十郎は目の前の少年たちが「伊達の若様」だとは露知らず、ただの好敵手として鋭い視線を向けてくる。</div>
+  </div>
+
+  <div class="panel reveal bg-morning">
+    <div class="stage">
+      <img class="m" src="saburo_bust.png" alt="敵陣を見渡す三郎">
+      <img class="m flip" src="tokimune_bust.png" alt="雪玉を放り投げる時宗丸">
+      <img class="m" src="bontenmaru_bust.png" alt="小十郎を見据える梵天丸">
+    </div>
+    <div class="narr">時宗丸はゴクリと唾を飲み、雪玉を軽く放り投げた。全身の血が湧き立つような興奮を覚える。三郎は冷静に敵の配置を見渡し、梵天丸は鋭い眼光で小十郎を見据えている。</div>
+    <div class="b mind right">（負けられない。二人のためにも、俺の直感で道を切り拓く！）</div>
+  </div>
+
+  <!-- ═══ 第三章 ═══ -->
+  <section class="chapter light">
+    <div class="lamp"></div>
+    <h2>第三章　戦いの火蓋</h2>
+  </section>
+
+  <div class="panel wide reveal bg-morning" style="text-align:center">
+    <div class="sfx">「始めッ！」</div>
+    <div class="speedlines"></div>
+    <div class="narr" style="text-align:left">合図とともに雪合戦が始まると、小十郎隊の動きは予想以上に鋭かった。</div>
+    <div class="narr" style="text-align:left">三郎の読み通り、北側の深雪には周到な伏兵が潜んでおり、迂闊に動けば一網打尽にされる緊迫した状況。小十郎の指揮によって、じわじわと包囲網が狭まっていく。</div>
+  </div>
+
+  <div class="panel reveal bg-morning">
+    <div class="stage">
+      <img class="m" src="saburo_bust.png" alt="制止する三郎">
+      <img class="m flip" src="tokimune_bust.png" alt="前に出ようとする時宗丸">
+    </div>
+    <div class="b sab left"><span class="who">三郎</span><br>時宗丸、待て！ 敵は南の強風を利用して、こちらの狙いを狂わせようとしている！ 一度引いて陣形を立て直すべきだ！</div>
+    <div class="narr">三郎が時宗丸の服の袖を引いて制止する。しかし、敵の激しい猛攻により、雪玉は大将である梵天丸のすぐ近くまで迫っていた。</div>
+    <div class="narr">この窮地――時宗丸の雪国育ちの野生の勘が、激しく叫んだ。</div>
+  </div>
+
+  <div class="panel reveal bg-morning">
+    <div class="b tok right"><span class="who">時宗丸</span><br>いや、ここで引いたら小十郎の思う壺だ！ 三郎、お前の言う『南の強風』に向かって、俺は突っ込む！</div>
+    <div class="b sab left"><span class="who">三郎</span><br>何！？ 正気か、風下から突っ込めば敵の格好の的だぞ！</div>
+    <div class="b tok right"><span class="who">時宗丸</span><br>風が強いってことは、敵の雪玉だって流されるってことだ！ 狙いがブレる隙を突いて、一気に距離を詰めりゃあ俺の勝ちだ！</div>
+  </div>
+
+  <div class="panel reveal bg-morning">
+    <div class="stage"><img class="m bust" src="bontenmaru_bust.png" alt="吠える梵天丸"></div>
+    <div class="narr">正論を説く三郎と、直感に賭ける時宗丸。二人の視線が大将へと集まる。梵天丸は、飛んでくる雪玉を恐れることなく、前を向いて豪快に吠えた。</div>
+    <div class="b bon shout left"><span class="who">梵天丸</span><br>行け、時宗丸！ お前のその直感を信じる！ 三郎、俺たちも後に続くぞ！</div>
+  </div>
+
+  <!-- ═══ 第四章 ═══ -->
+  <section class="chapter light">
+    <div class="lamp"></div>
+    <h2>第四章　激突</h2>
+  </section>
+
+  <div class="panel wide reveal bg-dusk" style="text-align:center">
+    <div class="speedlines"></div>
+    <div class="sfx big">「俺に続け――っ!!」</div>
+    <div class="stage"><img class="l charge" src="tokimune.png" alt="突撃する時宗丸"></div>
+    <div class="narr" style="text-align:left">時宗丸は雪を蹴り、猛烈な勢いで南側の強風の中へと突っ込んでいった。快活な声を響かせながら、向かい風を切り裂いて猛進する。</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <div class="b mob left"><span class="who">敵兵</span><br>あいつ、正気か！？</div>
+    <div class="narr">小十郎の部下たちが一斉に時宗丸を狙って雪玉を放つ。――だが時宗丸の予測通り、吹き荒れる強風で軌道がわずかに逸れていく。</div>
+    <div class="narr">その一瞬の隙を見逃さず、時宗丸は雪国仕込みの素早い身のこなしで雪玉をかいくぐり、敵陣の横腹へと一気に踊り出た。</div>
+    <div class="b tok shout right"><span class="who">時宗丸</span><br>三郎！ 今だ、動揺した敵の足を止めろ！</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <div class="stage"><img class="m face focus" src="koji_face.png" alt="焦る小十郎"></div>
+    <div class="narr">時宗丸の無茶苦茶な突撃によって、完璧だったはずの小十郎の陣形がガラガラと崩れる。</div>
+    <div class="narr">暴走する時宗丸に呆れつつも、その意図を瞬時に理解した三郎は、すかさず完璧な援護に回った。三郎が放った正確無比な雪玉が、動揺した敵の伏兵を次々と正確に仕留めていく。</div>
+    <div class="sfx">ヒュッ‥‥バシッ!!</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <div class="stage"><img class="m face focus" src="koji_face.png" alt="焦る小十郎"></div>
+    <div class="b koj left"><span class="who">小十郎</span><br>おのれ、なんと凄まじい勢い……！</div>
+    <div class="narr">小十郎の顔に、初めて明確な焦りの色が浮かんだ。しかし、時宗丸の突撃によって道を開かれたその目の前には――すでに雪玉を構えた大将・梵天丸が立ち塞がっていた。</div>
+    <div class="stage" style="margin-top:10px"><img class="l" src="bontenmaru.png" alt="雪玉を構える梵天丸"></div>
+  </div>
+
+  <!-- ═══ 第五章 ═══ -->
+  <section class="chapter light">
+    <div class="lamp"></div>
+    <h2>第五章　勝利と友情</h2>
+  </section>
+
+  <div class="panel wide reveal bg-dusk" style="text-align:center">
+    <div class="impact"></div>
+    <div class="b bon shout left" style="margin:6px auto"><span class="who">梵天丸</span><br>勝負ありだ、小十郎!!</div>
+    <div class="sfx big">ドッ!!</div>
+    <div class="narr" style="text-align:left">梵天丸の手から放たれた渾身の雪玉が、見事に小十郎の胸に命中した。静まり返った境内に、ドッと大きな歓声が響き渡る。</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <div class="stage">
+      <img class="m" src="saburo_bust.png" alt="肩を叩く三郎">
+      <img class="m flip" src="tokimune_bust.png" alt="笑う時宗丸">
+    </div>
+    <div class="narr">三郎はホッとしたように息を吐き、笑いながら時宗丸の肩を叩いた。</div>
+    <div class="b sab left"><span class="who">三郎</span><br>……まったく、お前の無茶な突撃には冷や冷やさせられる。だが、あのタイミングを逃さなかったお前の勝ちだ。さすがだな、時宗丸</div>
+    <div class="b bon left"><span class="who">梵天丸</span><br>来年も、お前が切り込み隊長だ！ お前の勢いがあれば、どこまでも進める！</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <div class="narr">小十郎は胸の雪を払いながら悔しそうにしていたが、やがて見事な連携に負けを認めるように、どこか嬉しそうに笑った。</div>
+    <div class="b koj left"><span class="who">小十郎</span><br>……あの強風の中を突っ込んでくるとは。完全に裏をかかれました。君たち、やっぱりただのガキ大将じゃありませんね。来年こそ決着をつけましょう</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <div class="stage"><img class="m bust" src="bontenmaru_bust.png" alt="最高の笑顔の梵天丸"></div>
+    <div class="narr">その言葉に、梵天丸がぱっと顔を上げ、不敵かつ最高の笑顔を浮かべた。</div>
+    <div class="b bon shout left"><span class="who">梵天丸</span><br>これからはな、小十郎！ お前は俺たちの仲間だ！</div>
+    <div class="b sab left"><span class="who">三郎</span><br>敵としても手強かったけど……味方なら、もっと心強いだろ？ 時宗丸の突撃に、お前の知略が加われば無敵だ</div>
+  </div>
+
+  <div class="panel reveal bg-dusk">
+    <div class="narr">小十郎は驚いたように目を見開き、自分が敗れた相手の、底知れない「器の大きさ」に圧倒されていた。そして次の瞬間、照れくさそうに視線をそらす。</div>
+    <div class="stage"><img class="m face" src="koji_face.png" alt="照れる小十郎"></div>
+    <div class="b koj left"><span class="who">小十郎</span><br>……ふん。お前らがそこまで言うなら、考えてやってもいい</div>
+    <div class="b tok right"><span class="who">時宗丸</span><br>ガハハ！</div>
+    <div class="narr">時宗丸は豪快に笑い、胸の奥がじんわりと温かくなるのを感じた。自分の直感を信じて背中を押してくれた仲間たち、そして新しく加わる頼もしい友の存在が嬉しかった。</div>
+  </div>
+
+  <!-- ═══ エピローグ ═══ -->
+  <div class="panel dark reveal bg-night">
+    <div class="stage">
+      <img class="s" src="saburo_bust.png" alt="三郎">
+      <img class="m" src="bontenmaru_bust.png" alt="梵天丸">
+      <img class="s flip" src="tokimune_bust.png" alt="時宗丸">
+    </div>
+    <div class="narr">雪は静かに降り続き、四人の笑い声が、白い境内にいつまでも響いていた。</div>
+    <div class="narr">まるで、彼らの新しい未来の戦いが――すでにここから始まっているかのようだった。</div>
+  </div>
+
+  <section class="ending">
+    <div class="fin">― 完 ―</div>
+    <p ><font color="white">置賜雪合戦紀<br>雪灯籠の光の下で結ばれた絆は、<br>やがて奥州の歴史を動かす。</font></p>
+  </section>
+
+</div>
+
+<script>
+// 雪
+(function(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const layer=document.getElementById('snow');
+  const glyphs=['❄','❅','•'];
+  for(let i=0;i<26;i++){
+    const f=document.createElement('span');
+    f.className='flake';
+    f.textContent=glyphs[i%glyphs.length];
+    f.style.left=Math.random()*100+'vw';
+    f.style.fontSize=(8+Math.random()*14)+'px';
+    f.style.opacity=(0.35+Math.random()*0.5).toFixed(2);
+    f.style.animationDuration=(7+Math.random()*9)+'s';
+    f.style.animationDelay=(-Math.random()*12)+'s';
+    layer.appendChild(f);
+  }
+})();
+// スクロール表示
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('on'); io.unobserve(e.target);} });
+},{threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
