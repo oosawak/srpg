@@ -2196,25 +2196,31 @@ function runTurnEnd() {
   safeRender();
 }
 
-toggleViewButton.addEventListener("click", toggleViewMode);
-endTurnButton.addEventListener("click", runTurnEnd);
-resetViewButton.addEventListener("click", () => {
-  try {
-    debugLog("reset button click", { wasm: bridge.useWasm });
-    if (bridge.useWasm && bridge.instance) {
-      bridge.instance.reset();
-      debugLog("reset forwarded to wasm");
-      safeRender();
-      return;
-    }
+if (toggleViewButton) toggleViewButton.addEventListener("click", toggleViewMode);
+if (endTurnButton) endTurnButton.addEventListener("click", runTurnEnd);
+if (resetViewButton) {
+  resetViewButton.addEventListener("click", () => {
+    try {
+      debugLog("reset button click", { wasm: bridge.useWasm });
+      if (bridge.useWasm && bridge.instance) {
+        bridge.instance.reset();
+        debugLog("reset forwarded to wasm");
+        safeRender();
+        return;
+      }
 
-    resetGame();
-    debugLog("reset handled locally");
-    safeRender();
-  } catch (error) {
-    showStartupError(error);
-  }
-});
+      resetGame();
+      debugLog("reset handled locally");
+      safeRender();
+    } catch (error) {
+      showStartupError(error);
+    }
+  });
+}
+
+if (zoomOutButton) zoomOutButton.addEventListener("click", zoomOut);
+if (zoomResetButton) zoomResetButton.addEventListener("click", zoomReset);
+if (zoomInButton) zoomInButton.addEventListener("click", zoomIn);
 
 canvas.addEventListener("pointerdown", handleLongPressPointerDown);
 canvas.addEventListener("pointermove", handleLongPressPointerMove);

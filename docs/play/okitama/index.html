@@ -544,9 +544,21 @@ body{
         padding: 0 8px 2px;
       }
 
+      .shell.srpg-compact .gameControls {
+        top: 12px;
+        left: 12px;
+        gap: 6px;
+        max-width: calc(100% - 24px);
+      }
+
       .shell.srpg-compact .toolbar button,
       .shell.srpg-compact .zoomControl {
         box-shadow: none;
+      }
+
+      .shell.srpg-compact .gameControls button {
+        padding: 7px 10px;
+        font-size: 10px;
       }
 
       .shell.srpg-compact .toolbar button {
@@ -573,20 +585,19 @@ body{
 
     <main class="shell srpg-compact">
       <div class="toolbar">
-        <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
-        <button id="zoomOut" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomOut()">縮小</button>
-        <button id="zoomReset" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomReset()">標準</button>
-        <button id="zoomIn" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomIn()">拡大</button>
         <label class="zoomControl" for="zoomRange">
           <span id="zoomLabel">90%</span>
           <input id="zoomRange" type="range" min="30" max="200" step="5" value="75" />
         </label>
-        <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
-        <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
       </div>
 
       <section class="board">
         <div class="canvasWrap">
+          <div class="gameControls">
+            <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
+            <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
+            <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
+          </div>
           <div class="unitCard unitCardOverlay">
             <h3 class="unitCardHeader">
               <span>ユニット情報</span>

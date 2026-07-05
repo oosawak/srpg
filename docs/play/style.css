@@ -150,6 +150,23 @@ button.secondary {
   position: relative;
 }
 
+.gameControls {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: min(52vw, 420px);
+}
+
+.gameControls button {
+  padding: 9px 12px;
+  font-size: 12px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+}
+
 canvas {
   width: 100%;
   height: auto;
@@ -559,6 +576,18 @@ dd {
   .hero {
     gap: 12px;
     margin-bottom: 14px;
+  }
+
+  .gameControls {
+    top: 12px;
+    left: 12px;
+    gap: 6px;
+    max-width: calc(100% - 24px);
+  }
+
+  .gameControls button {
+    padding: 7px 10px;
+    font-size: 10px;
   }
 
   h1 {

@@ -9,29 +9,21 @@
   <body>
     <main class="shell">
       <section class="hero">
-        <div>
-          <p class="eyebrow">SRPG prototype</p>
-          <h1>戦国タクティクス・マップビュー</h1>
-          <p class="lede">
-            斜め見下ろしと、真上 2D を切り替えられる戦国 SRPG の試作です。
-          </p>
-        </div>
         <div class="toolbar">
-          <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
-          <button id="zoomOut" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomOut()">縮小</button>
-          <button id="zoomReset" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomReset()">標準</button>
-          <button id="zoomIn" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomIn()">拡大</button>
           <label class="zoomControl" for="zoomRange">
             <span id="zoomLabel">90%</span>
             <input id="zoomRange" type="range" min="30" max="200" step="5" value="75" />
           </label>
-          <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
-          <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
         </div>
       </section>
 
       <section class="board">
         <div class="canvasWrap">
+          <div class="gameControls">
+            <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
+            <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
+            <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
+          </div>
           <div class="unitCard unitCardOverlay">
             <h3 class="unitCardHeader">
               <span>ユニット情報</span>
