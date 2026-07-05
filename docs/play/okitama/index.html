@@ -112,6 +112,8 @@ body{
 
 /* キャラ配置 */
 .stage{
+  position:relative;
+  z-index:1;
   display:flex;
   justify-content:center;
   align-items:flex-end;
@@ -119,7 +121,8 @@ body{
   margin:14px 0 6px;
   min-height:150px;
   padding:12px 14px 8px;
-  background:#fff;
+  background:#fff !important;
+  background-image:none !important;
   border:2px solid #000;
   border-radius:12px;
   box-shadow:4px 4px 0 rgba(20,25,40,.25);
