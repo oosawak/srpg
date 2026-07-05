@@ -388,7 +388,7 @@ body{
     <div class="narr" style="text-align:left">時宗丸は雪を蹴り、猛烈な勢いで南側の強風の中へと突っ込んでいった。快活な声を響かせながら、向かい風を切り裂いて猛進する。</div>
   </div>
 
-  <div class="panel reveal bg-dusk">
+  <div class="panel reveal bg-dusk srpg-panel">
     <div id="srpgMount" class="srpg-mount" aria-label="現在作成中の SRPG"></div>
   </div>
 
@@ -398,6 +398,11 @@ body{
         width: min(900px, calc(100vw - 12px));
         padding: 0;
         margin-inline: auto;
+      }
+
+      .srpg-panel {
+        overflow: visible;
+        padding-inline: 10px;
       }
 
       .shell.srpg-compact .hero {
