@@ -531,10 +531,11 @@ dd {
 .abilityButton strong {
   display: block;
   margin-bottom: 4px;
+  color: #ffffff;
 }
 
 .abilityButton small {
-  color: var(--muted);
+  color: #ffffff;
 }
 
 .swatch {
