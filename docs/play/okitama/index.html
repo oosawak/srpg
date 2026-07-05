@@ -124,6 +124,9 @@ body{
 .stage > img + img{
   margin-left:-58px;
 }
+.stage-tight > img + img{
+  margin-left:-46px;
+}
 .stage img{
   flex:0 0 auto;
   filter:drop-shadow(3px 4px 5px rgba(0,0,0,.22));
@@ -141,6 +144,9 @@ body{
 @media (max-width: 640px){
   .stage > img + img{
     margin-left:-42px;
+  }
+  .stage-tight > img + img{
+    margin-left:-34px;
   }
 }
 
@@ -651,7 +657,7 @@ body{
 
   <!-- ═══ エピローグ ═══ -->
   <div class="panel dark reveal bg-night">
-    <div class="stage">
+    <div class="stage stage-tight">
       <img class="s" src="saburo_bust.png" alt="三郎">
       <img class="m" src="bontenmaru_bust.png" alt="梵天丸">
       <img class="s flip" src="tokimune_bust.png" alt="時宗丸">
