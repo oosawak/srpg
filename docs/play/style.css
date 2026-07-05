@@ -376,6 +376,7 @@ canvas {
 
 .unitCardHeader span {
   min-width: 0;
+  color: #ffffff;
 }
 
 .unitPanelClose {
