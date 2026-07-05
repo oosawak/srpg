@@ -111,8 +111,20 @@ body{
 .panel.dark .narr{background:#F5F5F5 !important;color:#555 !important;border-color:#000 !important}
 
 /* キャラ配置 */
-.stage{display:flex;justify-content:center;align-items:flex-end;gap:-20px;margin:14px 0 6px;min-height:150px}
-.stage img{filter:drop-shadow(3px 4px 5px rgba(0,0,0,.28))}
+.stage{
+  display:flex;
+  justify-content:center;
+  align-items:flex-end;
+  gap:-20px;
+  margin:14px 0 6px;
+  min-height:150px;
+  padding:12px 14px 8px;
+  background:#fff;
+  border:2px solid #000;
+  border-radius:12px;
+  box-shadow:4px 4px 0 rgba(20,25,40,.25);
+}
+.stage img{filter:drop-shadow(3px 4px 5px rgba(0,0,0,.22))}
 .stage .s{height:150px}.stage .m{height:200px}.stage .l{height:260px}
 /* 上半身版 */
 .stage .bust{height:140px}.stage .bust.m{height:180px}.stage .bust.l{height:200px}
