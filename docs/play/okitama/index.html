@@ -174,9 +174,11 @@ body{
   font-family:'Shippori Mincho B1',serif;font-size:44px;color:var(--purple);opacity:.7}
 
 .srpg-mount{
-  display:block;
+  display:flex;
+  justify-content:center;
   width:100%;
   min-height:min(72vh, 680px);
+  overflow:visible;
 }
 @media (max-width: 640px){
   .srpg-mount{min-height:min(78vh, 620px)}
@@ -393,8 +395,9 @@ body{
   <template id="srpgTemplate">
     <style>
       .shell.srpg-compact {
-        width: min(860px, calc(100vw - 20px));
+        width: min(900px, calc(100vw - 12px));
         padding: 0;
+        margin-inline: auto;
       }
 
       .shell.srpg-compact .hero {
