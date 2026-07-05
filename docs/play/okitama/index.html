@@ -127,6 +127,11 @@ body{
 .stage-tight > img + img{
   margin-left:-46px;
 }
+.stage-backed{
+  padding:8px 10px 6px;
+  background:#fff;
+  border-radius:12px;
+}
 .stage img{
   flex:0 0 auto;
   filter:drop-shadow(3px 4px 5px rgba(0,0,0,.22));
@@ -147,6 +152,9 @@ body{
   }
   .stage-tight > img + img{
     margin-left:-34px;
+  }
+  .stage-backed{
+    padding:6px 8px 4px;
   }
 }
 
@@ -375,7 +383,7 @@ body{
   <div class="panel reveal bg-morning">
     <div class="stage"><img class="m face focus flip" src="tokimune_face.png" alt="笑う時宗丸"></div>
     <div class="narr">二人の必死な表情に、時宗丸の胸の奥でじわりと熱いものが広がった。</div>
-    <div class="b mind right"><font color="white">（小十郎か……面白そうな話じゃねえか！）</font></div>
+    <div class="b mind right">（小十郎か……面白そうな話じゃねえか！）</div>
     <div class="b tok right"><span class="who">時宗丸</span><br>そこまで言うなら、俺も本気で暴れてやるよ！ しょうがないな、今回だけだぞ！</div>
   </div>
 
@@ -738,7 +746,7 @@ body{
 
   <!-- ═══ エピローグ ═══ -->
   <div class="panel dark reveal bg-night">
-    <div class="stage stage-tight">
+    <div class="stage stage-tight stage-backed">
       <img class="s" src="saburo_bust.png" alt="三郎">
       <img class="m" src="bontenmaru_bust.png" alt="梵天丸">
       <img class="s flip" src="tokimune_bust.png" alt="時宗丸">
