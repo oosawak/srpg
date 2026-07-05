@@ -222,6 +222,31 @@ body{
   .srpg-mount{min-height:min(78vh, 620px)}
 }
 
+.copy-mount{
+  width:100%;
+  min-height:min(80vh, 760px);
+  overflow:hidden;
+  border-radius:16px;
+  background:#fff;
+  border:1px solid rgba(0,0,0,.12);
+  box-shadow:0 18px 40px rgba(0,0,0,.14);
+}
+.copy-mount iframe{
+  display:block;
+  width:100%;
+  height:min(82vh, 780px);
+  border:0;
+  background:#fff;
+}
+@media (max-width: 640px){
+  .copy-mount{
+    min-height:min(76vh, 640px);
+  }
+  .copy-mount iframe{
+    height:min(78vh, 660px);
+  }
+}
+
 @media (max-width: 640px){
   .title-screen{
     padding: 34px 18px;
@@ -503,6 +528,12 @@ body{
     <div class="sfx big chargeLine">「俺に続け――っ!!」</div>
     <div class="stage"><img class="l charge" src="tokimune.png" alt="突撃する時宗丸"></div>
     <div class="narr" style="text-align:left">時宗丸は雪を蹴り、猛烈な勢いで南側の強風の中へと突っ込んでいった。快活な声を響かせながら、向かい風を切り裂いて猛進する。</div>
+  </div>
+
+  <div class="panel reveal bg-morning">
+    <div class="copy-mount">
+      <iframe src="./villager-search/index.html" title="雪の中の村人の子供さがし" loading="lazy"></iframe>
+    </div>
   </div>
 
   <div class="panel reveal bg-dusk srpg-panel">
