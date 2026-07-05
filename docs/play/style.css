@@ -409,6 +409,7 @@ canvas {
 .unitCardOverlay .unitInfoTitle,
 .enemyCardOverlay .unitInfoTitle {
   font-size: 12px;
+  color: #ffffff;
 }
 
 .unitCardOverlay .unitInfoBody,
@@ -417,6 +418,7 @@ canvas {
 .enemyCardOverlay .statusLine {
   font-size: 10px;
   line-height: 1.35;
+  color: #ffffff;
 }
 
 .unitCardOverlay .unitActions,
@@ -430,6 +432,16 @@ canvas {
   padding: 7px 10px;
   font-size: 11px;
   flex: 1 1 72px;
+}
+
+.abilityButton strong,
+.abilityButton small {
+  color: #ffffff;
+}
+
+.unitCardOverlay .unitHpLabel,
+.enemyCardOverlay .unitHpLabel {
+  color: #ffffff;
 }
 
 .stats {

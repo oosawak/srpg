@@ -1518,7 +1518,7 @@ function drawUnit(unit, current, progress = 1) {
     ctx.lineWidth = 1;
   }
 
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#08111b";
   ctx.font = `bold ${Math.max(9, 13 * zoom)}px "Noto Sans JP", "Segoe UI Emoji", sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(unitBadgeText(unit), x, y + 4 * zoom);
