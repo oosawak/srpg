@@ -391,28 +391,67 @@ body{
   </div>
 
   <template id="srpgTemplate">
-    <main class="shell">
-      <section class="hero">
-        <div>
-          <p class="eyebrow">SRPG prototype</p>
-          <h1>戦国タクティクス・マップビュー</h1>
-          <p class="lede">
-            斜め見下ろしと、真上 2D を切り替えられる戦国 SRPG の試作です。
-          </p>
-        </div>
-        <div class="toolbar">
-          <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
-          <button id="zoomOut" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomOut()">縮小</button>
-          <button id="zoomReset" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomReset()">標準</button>
-          <button id="zoomIn" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomIn()">拡大</button>
-          <label class="zoomControl" for="zoomRange">
-            <span id="zoomLabel">90%</span>
-            <input id="zoomRange" type="range" min="30" max="200" step="5" value="75" />
-          </label>
-          <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
-          <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
-        </div>
-      </section>
+    <style>
+      .shell.srpg-compact {
+        width: min(980px, calc(100vw - 24px));
+        padding: 0;
+      }
+
+      .shell.srpg-compact .hero {
+        display: none;
+      }
+
+      .shell.srpg-compact .board {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .shell.srpg-compact .canvasWrap {
+        min-height: min(52vh, 500px);
+        border-radius: 18px;
+      }
+
+      .shell.srpg-compact .toolbar {
+        justify-content: center;
+        padding: 0 8px 2px;
+      }
+
+      .shell.srpg-compact .toolbar button,
+      .shell.srpg-compact .zoomControl {
+        box-shadow: none;
+      }
+
+      .shell.srpg-compact .toolbar button {
+        padding: 9px 12px;
+        font-size: 12px;
+      }
+
+      .shell.srpg-compact .zoomControl {
+        padding: 7px 10px;
+      }
+
+      .shell.srpg-compact .zoomControl input[type="range"] {
+        width: 90px;
+      }
+
+      .shell.srpg-compact .panel.srpg-hiddenPanel {
+        display: none;
+      }
+    </style>
+
+    <main class="shell srpg-compact">
+      <div class="toolbar">
+        <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
+        <button id="zoomOut" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomOut()">縮小</button>
+        <button id="zoomReset" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomReset()">標準</button>
+        <button id="zoomIn" class="secondary" onclick="window.srpgUi && window.srpgUi.zoomIn()">拡大</button>
+        <label class="zoomControl" for="zoomRange">
+          <span id="zoomLabel">90%</span>
+          <input id="zoomRange" type="range" min="30" max="200" step="5" value="75" />
+        </label>
+        <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
+        <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
+      </div>
 
       <section class="board">
         <div class="canvasWrap">
@@ -440,7 +479,7 @@ body{
           <canvas id="mapCanvas" width="960" height="720" aria-label="map view"></canvas>
         </div>
 
-        <aside class="panel">
+        <aside class="panel srpg-hiddenPanel" hidden aria-hidden="true">
           <div id="bootStatus" class="bootStatus">booting...</div>
           <div id="inputProbe" class="bootStatus">input: none</div>
           <h2>状態</h2>
