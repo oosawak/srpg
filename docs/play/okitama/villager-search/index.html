@@ -172,6 +172,7 @@ canvas {
   touch-action: none;
   cursor: pointer;
   border-radius: 22px;
+  background: #13253f;
 }
 .overlay {
   position: absolute;
@@ -179,7 +180,7 @@ canvas {
   display: grid;
   place-items: center;
   border-radius: 22px;
-  background: rgba(248, 241, 233, 0.68);
+  background: rgba(12, 22, 38, 0.30);
   backdrop-filter: blur(6px);
   opacity: 0;
   pointer-events: none;
@@ -192,8 +193,8 @@ canvas {
 .overlay-card {
   padding: 18px 22px;
   border-radius: 24px;
-  background: rgba(255,255,255,0.92);
-  border: 1px solid rgba(94, 64, 57, 0.12);
+  background: rgba(255,255,255,0.96);
+  border: 1px solid rgba(38, 56, 78, 0.10);
   text-align: center;
   box-shadow: 0 16px 36px rgba(130, 98, 90, 0.14);
 }
@@ -308,7 +309,7 @@ button.control.new-layout {
 import init, * as wasm from './wasm/wasm_app.js?v=20260617-18';
 
 const BOARD_SIZES = { 1: 5, 2: 7, 3: 9 };
-const PALETTE = ['#f48fb0', '#b2df9f', '#ffbf59', '#a7c8f1', '#cbb6f2'];
+const PALETTE = ['#5f7286', '#91a3b4', '#394553', '#b7c4cf', '#232a33'];
 const VILLAGERS = [
   { kind: 'hood', skin: '#ffe8cb', hair: '#6c4d39', coat: '#d07e62', trim: '#f7f2e8', accent: '#b45a44' },
   { kind: 'cap', skin: '#f7dfc4', hair: '#5c4335', coat: '#8fb2d8', trim: '#f7f4ef', accent: '#5878a7' },
@@ -537,7 +538,7 @@ function drawX(ctx, cx, cy, size) {
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(86, 54, 49, 0.55)';
+  ctx.strokeStyle = 'rgba(28, 36, 46, 0.54)';
   ctx.lineWidth = Math.max(3, size * 0.10);
   ctx.beginPath();
   ctx.moveTo(cx - size * 0.26, cy - size * 0.26);
@@ -681,8 +682,8 @@ function drawBoard(now) {
   ctx.clearRect(0, 0, w, h);
 
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, '#fffaf7');
-  bg.addColorStop(1, '#f8eee8');
+  bg.addColorStop(0, '#13253f');
+  bg.addColorStop(1, '#1e3554');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
@@ -729,10 +730,10 @@ function drawBoard(now) {
       ctx.fill();
 
       ctx.lineWidth = isHover ? 2.4 : 1.3;
-      ctx.strokeStyle = isHover ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.68)';
+      ctx.strokeStyle = isHover ? 'rgba(255,255,255,0.94)' : 'rgba(255,255,255,0.12)';
       ctx.stroke();
 
-      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
       roundRect(ctx, 8, 8, cellSize - 16, cellSize - 16, cellSize * 0.14);
       ctx.fill();
 
@@ -749,7 +750,7 @@ function drawBoard(now) {
   }
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.94)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.26)';
   ctx.lineWidth = 4;
   roundRect(ctx, 1.5, 1.5, boardSize - 3, boardSize - 3, 24);
   ctx.stroke();

@@ -222,28 +222,40 @@ body{
   .srpg-mount{min-height:min(78vh, 620px)}
 }
 
+.srpg-panel::before{
+  background: transparent;
+}
+
+.copy-panel::before{
+  background: transparent;
+}
+
+.copy-panel{
+  padding: 14px 12px 16px;
+}
+
 .copy-mount{
   width:100%;
-  min-height:min(80vh, 760px);
-  overflow:hidden;
-  border-radius:16px;
-  background:#fff;
-  border:1px solid rgba(0,0,0,.12);
-  box-shadow:0 18px 40px rgba(0,0,0,.14);
+  min-height:min(98vh, 940px);
+  overflow:visible;
+  border-radius:0;
+  background:transparent;
+  border:0;
+  box-shadow:none;
 }
 .copy-mount iframe{
   display:block;
   width:100%;
-  height:min(82vh, 780px);
+  height:min(102vh, 980px);
   border:0;
-  background:#fff;
+  background:transparent;
 }
 @media (max-width: 640px){
   .copy-mount{
-    min-height:min(76vh, 640px);
+    min-height:min(94vh, 820px);
   }
   .copy-mount iframe{
-    height:min(78vh, 660px);
+    height:min(98vh, 860px);
   }
 }
 
@@ -530,7 +542,7 @@ body{
     <div class="narr" style="text-align:left">時宗丸は雪を蹴り、猛烈な勢いで南側の強風の中へと突っ込んでいった。快活な声を響かせながら、向かい風を切り裂いて猛進する。</div>
   </div>
 
-  <div class="panel reveal bg-morning">
+  <div class="panel reveal bg-morning copy-panel">
     <div class="copy-mount">
       <iframe src="./villager-search/index.html" title="雪の中の村人の子供さがし" loading="lazy"></iframe>
     </div>
