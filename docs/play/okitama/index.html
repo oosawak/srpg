@@ -173,7 +173,16 @@ body{
 .card .noimg{height:130px;display:flex;align-items:center;justify-content:center;
   font-family:'Shippori Mincho B1',serif;font-size:44px;color:var(--purple);opacity:.7}
 
-.srpg-canvas{display:block;width:100%;height:auto;border:2px solid var(--ink);background:#fff}
+.srpg-frame{
+  display:block;
+  width:100%;
+  height:min(72vh, 680px);
+  border:2px solid var(--ink);
+  background:#fff;
+}
+@media (max-width: 640px){
+  .srpg-frame{height:min(78vh, 620px)}
+}
 
 /* エピローグ・フッター */
 .ending{padding:70px 24px 90px;text-align:center;color:var(--snow)}
@@ -380,7 +389,13 @@ body{
   </div>
 
   <div class="panel reveal bg-dusk">
-    <canvas id="srpgCanvas" class="srpg-canvas" width="960" height="540" aria-label="srpg canvas"></canvas>
+    <iframe
+      id="srpgFrame"
+      class="srpg-frame"
+      src="../index.html"
+      title="現在作成中の SRPG"
+      loading="lazy"
+    ></iframe>
   </div>
 
   <div class="panel reveal bg-dusk">
