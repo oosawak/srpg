@@ -939,9 +939,11 @@ body{
         localStorage.setItem(key, '1');
       };
 
-      if (localStorage.getItem(key) === '1') {
-        revealPostPuzzle();
+      // 小説は初期状態で読めるように、クリア済みフラグを先に立てておく。
+      if (localStorage.getItem(key) !== '1') {
+        localStorage.setItem(key, '1');
       }
+      revealPostPuzzle();
 
       window.addEventListener('villager-search-solved', revealPostPuzzle);
     })();
