@@ -25,7 +25,7 @@ body{
     #1B2E52 22%, #2A4468 30%,        /* 深夜：作戦会議 */
     #7FA8C9 38%, #C9DEEC 44%,        /* 夜明け→朝 */
     #DDEBF5 58%, #C2D8E8 70%,        /* 昼：合戦 */
-    #9DAEC1 82%, #5E6E82 90%, #0E1728 100%); /* 夕暮れ→夜 */
+    #9DAEC1 82%, #5E6E82 90%, #000000 100%); /* 夕暮れ→夜 */
 }
 
 /* ── 雪 ── */
@@ -99,22 +99,22 @@ body{
 .panel::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.88);border-radius:2px;z-index:0;pointer-events:none}
 .panel-content{position:relative;z-index:1}
 
-/* 背景画像 */
-.panel.bg-night{background-image:url('bg_night.png')}
-.panel.bg-dawn{background-image:url('bg_dawn.png')}
-.panel.bg-morning{background-image:url('bg_morning.png')}
-.panel.bg-dusk{background-image:url('bg_dusk.png')}
-.panel.bg-sunset{background-image:url('bg_sunset.png')}
+/* 背景 */
+.panel.bg-night{background-image:linear-gradient(180deg, #0c1525 0%, #111f37 100%)}
+.panel.bg-dawn{background-image:linear-gradient(180deg, #203453 0%, #96b4d8 100%)}
+.panel.bg-morning{background-image:linear-gradient(180deg, #7fa8c9 0%, #dceaf5 100%)}
+.panel.bg-dusk{background-image:linear-gradient(180deg, #1c2740 0%, #4c5f7b 100%)}
+.panel.bg-sunset{background-image:linear-gradient(180deg, #3f2a3c 0%, #7d5365 100%)}
 .panel.dark{background:#FFFFFF;border-color:#333;color:#000}
 .panel.dark::before{background:rgba(29,43,71,.92)}
 .panel.dark::before{background:rgba(29,43,71,.88)}
 
 /* 背景画像適用 */
-.panel.bg-night{background-image:url('bg_night.png')}
-.panel.bg-dawn{background-image:url('bg_dawn.png')}
-.panel.bg-morning{background-image:url('bg_morning.png')}
-.panel.bg-dusk{background-image:url('bg_dusk.png')}
-.panel.bg-sunset{background-image:url('bg_sunset.png')}
+.panel.bg-night{background-image:linear-gradient(180deg, #0c1525 0%, #111f37 100%)}
+.panel.bg-dawn{background-image:linear-gradient(180deg, #203453 0%, #96b4d8 100%)}
+.panel.bg-morning{background-image:linear-gradient(180deg, #7fa8c9 0%, #dceaf5 100%)}
+.panel.bg-dusk{background-image:linear-gradient(180deg, #1c2740 0%, #4c5f7b 100%)}
+.panel.bg-sunset{background-image:linear-gradient(180deg, #3f2a3c 0%, #7d5365 100%)}
 .panel.wide{margin:22px 6px}
 
 .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
@@ -791,7 +791,7 @@ body{
 
       const engineCss = document.createElement('link');
       engineCss.rel = 'stylesheet';
-      engineCss.href = new URL('../../engine.css', import.meta.url).href;
+      engineCss.href = new URL('../engine.css', import.meta.url).href;
       shadow.append(engineCss);
 
       const hostStyle = document.createElement('style');

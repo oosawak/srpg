@@ -253,28 +253,28 @@ button.control.new-layout {
 .status strong {
   color: var(--good);
 }
-.state-unsolved .title-line {
+:host(.state-unsolved) .title-line {
   color: #274861;
   text-shadow: 0 1px 0 rgba(255,255,255,0.96), 0 0 10px rgba(255,255,255,0.42);
 }
-.state-unsolved .top-note,
-.state-unsolved .status,
-.state-unsolved .rule,
-.state-unsolved button.control {
+:host(.state-unsolved) .top-note,
+:host(.state-unsolved) .status,
+:host(.state-unsolved) .rule,
+:host(.state-unsolved) button.control {
   color: #2d4e69;
 }
-.state-unsolved .rule {
+:host(.state-unsolved) .rule {
   background: rgba(255,255,255,0.92);
   border-color: rgba(86, 118, 151, 0.18);
 }
-.state-unsolved button.control {
+:host(.state-unsolved) button.control {
   background: rgba(255,255,255,0.92);
 }
-.state-solved .title-line {
+:host(.state-solved) .title-line {
   color: #355b78;
 }
-.state-solved .top-note,
-.state-solved .status {
+:host(.state-solved) .top-note,
+:host(.state-solved) .status {
   color: rgba(63, 88, 114, 0.70);
 }
 @media (max-width: 640px) {
@@ -386,11 +386,12 @@ let musicStep = 0;
 let suppressedAutoMarks = new Set();
 
 const MUSIC_PATTERN = [261.63, 329.63, 392.0, 523.25, 392.0, 329.63];
-const body = document.body;
+const stateHost = document.host || document.documentElement;
 
 function syncStateTheme() {
-  body.classList.toggle('state-solved', solved);
-  body.classList.toggle('state-unsolved', !solved);
+  if (!stateHost || !stateHost.classList) return;
+  stateHost.classList.toggle('state-solved', solved);
+  stateHost.classList.toggle('state-unsolved', !solved);
 }
 syncStateTheme();
 
