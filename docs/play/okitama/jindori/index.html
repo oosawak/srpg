@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>雪陣取り</title>
+<link rel="stylesheet" href="../../engine.css">
+<style>
+:root {
+  --shell-width: min(520px, calc(100vw - 24px));
+  --bg: #edf4fb;
+  --bg-accent: #d9e9f8;
+  --panel: rgba(255, 255, 255, 0.76);
+  --panel-border: rgba(116, 146, 182, 0.18);
+  --text: #3f5872;
+  --muted: rgba(63, 88, 114, 0.66);
+  --pink: #f27ca4;
+  --green: #a7d8a0;
+  --amber: #ffbf54;
+  --blue: #9dc4f2;
+  --purple: #c4aff3;
+  --good: #59a86f;
+  --bad: #d35d66;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; min-height: 100%; margin: 0; }
+body {
+  font-family: var(--engine-font, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif);
+  color: var(--text);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.86), transparent 20%),
+    radial-gradient(circle at 82% 16%, rgba(214, 234, 255, 0.56), transparent 18%),
+    radial-gradient(circle at 50% 100%, rgba(139, 187, 232, 0.24), transparent 34%),
+    linear-gradient(180deg, #f7fbff 0%, #edf5fc 46%, #e3eef8 100%);
+  overflow: hidden;
+}
+main {
+  width: 100%;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto auto auto auto auto;
+  align-content: start;
+  gap: 6px;
+  padding: 10px 12px 8px;
+}
+.title-line {
+  width: var(--shell-width);
+  margin: 0 auto -1px;
+  text-align: center;
+  font-size: clamp(1rem, 2.6vw, 1.32rem);
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #355b78;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.85);
+}
+.top-note {
+  width: var(--shell-width);
+  margin: 0 auto;
+  color: rgba(53, 91, 120, 0.84);
+  font-size: 0.88rem;
+  line-height: 1.34;
+  padding: 0 2px;
+}
+.shell {
+  width: var(--shell-width);
+  margin: 0 auto;
+}
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.72);
+  color: var(--text);
+  box-shadow: 0 8px 18px rgba(121, 98, 92, 0.12);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  width: var(--shell-width);
+  margin: 0 auto;
+}
+.hud-center {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.music-btn {
+  display: none;
+}
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.84);
+  border: 1px solid rgba(169, 127, 119, 0.10);
+  box-shadow: 0 10px 24px rgba(130, 98, 90, 0.10);
+  font-size: 0.84rem;
+}
+.hud-pill strong {
+  font-weight: 800;
+}
+.hearts {
+  letter-spacing: 0.15em;
+  color: #f06d78;
+  font-size: 1.02rem;
+}
+.rules {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: var(--shell-width);
+  margin: 0 auto;
+}
+.rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(169, 127, 119, 0.08);
+  color: var(--muted);
+  font-size: 0.82rem;
+  box-shadow: 0 8px 18px rgba(130, 98, 90, 0.08);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rule.active {
+  color: var(--text);
+  border-color: rgba(94, 64, 57, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(94, 64, 57, 0.08), 0 10px 18px rgba(130, 98, 90, 0.12);
+}
+.stage {
+  width: var(--shell-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-self: start;
+}
+.board-shell {
+  position: relative;
+  padding: 12px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,251,255,0.92));
+  box-shadow: 0 24px 50px rgba(150, 112, 102, 0.12);
+  border: 1px solid rgba(154, 177, 201, 0.18);
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  touch-action: none;
+  cursor: pointer;
+  border-radius: 22px;
+  background: #13253f;
+}
+.overlay {
+  position: absolute;
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: rgba(12, 22, 38, 0.30);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.overlay-card {
+  padding: 18px 22px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.96);
+  border: 1px solid rgba(38, 56, 78, 0.10);
+  text-align: center;
+  box-shadow: 0 16px 36px rgba(130, 98, 90, 0.14);
+}
+.overlay-card h2 {
+  margin: 0 0 6px;
+  font-size: 1.55rem;
+}
+.overlay-card p {
+  margin: 0;
+  color: var(--muted);
+}
+.status-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  width: var(--shell-width);
+  margin: 0 auto;
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+button.control {
+  appearance: none;
+  border: 1px solid rgba(94, 64, 57, 0.12);
+  background: rgba(255,255,255,0.80);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.2;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(130, 98, 90, 0.08);
+}
+button.control.new-layout {
+  width: 104px;
+  padding: 8px 10px;
+}
+.status {
+  color: var(--muted);
+  font-size: 0.91rem;
+  line-height: 1.35;
+  min-height: 1.4em;
+}
+.status-below {
+  width: var(--shell-width);
+  margin: 3px auto 0;
+  text-align: center;
+}
+.status strong {
+  color: var(--good);
+}
+.state-unsolved .title-line {
+  color: #274861;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.96), 0 0 10px rgba(255,255,255,0.42);
+}
+.state-unsolved .top-note,
+.state-unsolved .status,
+.state-unsolved .rule,
+.state-unsolved button.control {
+  color: #2d4e69;
+}
+.state-unsolved .rule {
+  background: rgba(255,255,255,0.92);
+  border-color: rgba(86, 118, 151, 0.18);
+}
+.state-unsolved button.control {
+  background: rgba(255,255,255,0.92);
+}
+.state-solved .title-line {
+  color: #355b78;
+}
+.state-solved .top-note,
+.state-solved .status {
+  color: rgba(63, 88, 114, 0.70);
+}
+@media (max-width: 640px) {
+  body { overflow: hidden; }
+  main { min-height: 100dvh; }
+  :root {
+    --shell-width: min(520px, calc(100vw - 18px));
+  }
+  .stage {
+    gap: 6px;
+  }
+  .rules { gap: 6px; }
+  .rule {
+    padding: 6px 10px;
+    font-size: 0.74rem;
+    border-radius: 12px;
+  }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="title-line">雪陣取り</div>
+  <div class="top-note">表示された数字を参考に、陣を選択してください。</div>
+  <section class="stage">
+    <div class="status-row">
+      <div class="controls">
+        <button class="control" id="btn-reset">やり直し</button>
+        <button class="control" id="btn-undo">一手戻る</button>
+        <button class="control" id="btn-new-board">違う盤面</button>
+      </div>
+    </div>
+
+    <div class="board-shell" id="board-shell">
+      <canvas id="board"></canvas>
+      <div class="overlay" id="clear-overlay">
+        <div class="overlay-card">
+        <h2>陣形を立て直しました</h2>
+        </div>
+      </div>
+    </div>
+
+    <div class="status status-below" id="status">白いパネルをスライドして固定しよう</div>
+  </section>
+</main>
+
+<script type="module">
+import init, * as wasm from './wasm/wasm_app.js?v=20260706-23';
+
+const BOARD_SIZE = 5;
+const PAINT_FILLS = ['#dbeafe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#cffafe', '#fde68a', '#fdba74'];
+const ZONE_ACCENTS = ['#6b8fd6', '#65a96b', '#d4a72c', '#c66b96', '#8d7ad6', '#5ba5b4', '#cc8a31', '#d1772a'];
+const VILLAGERS = [
+  { kind: 'hood', skin: '#ffe8cb', hair: '#6c4d39', coat: '#d07e62', trim: '#f7f2e8', accent: '#b45a44' },
+  { kind: 'cap', skin: '#f7dfc4', hair: '#5c4335', coat: '#8fb2d8', trim: '#f7f4ef', accent: '#5878a7' },
+  { kind: 'ponytail', skin: '#f5d9bf', hair: '#8d5c47', coat: '#7cb58f', trim: '#f3efe7', accent: '#4f8a67' },
+  { kind: 'beanie', skin: '#ffe1c8', hair: '#4f3b32', coat: '#a67bd2', trim: '#f8f4ef', accent: '#7f5ab2' },
+  { kind: 'hood', skin: '#f7ddb9', hair: '#6a4a39', coat: '#d9a45a', trim: '#fff7ea', accent: '#a76a2a' },
+  { kind: 'cap', skin: '#ffe0ca', hair: '#634b3d', coat: '#df7680', trim: '#fff4f0', accent: '#b24d59' },
+  { kind: 'ponytail', skin: '#f6d7c2', hair: '#7a5a46', coat: '#89bddb', trim: '#f5fbff', accent: '#5b89ad' },
+  { kind: 'beanie', skin: '#f4ddbf', hair: '#5f4638', coat: '#8fa87a', trim: '#f7f6ef', accent: '#5f7f56' },
+  { kind: 'hood', skin: '#ffe2c8', hair: '#6d4d38', coat: '#b8a1e6', trim: '#f9f6ff', accent: '#7d67b8' },
+];
+
+const canvas = document.getElementById('board');
+const shell = document.getElementById('board-shell');
+const overlay = document.getElementById('clear-overlay');
+const statusEl = document.getElementById('status');
+let boardSize = 0;
+let cellSize = 0;
+let originX = 0;
+let originY = 0;
+let currentBoardSize = BOARD_SIZE;
+let zonesData = new Uint8Array(currentBoardSize * currentBoardSize);
+let solution = new Uint8Array(currentBoardSize * currentBoardSize);
+let currentVillager = VILLAGERS[0];
+let currentDifficulty = 1;
+let puzzleNonce = 0;
+let fixedCells = new Uint8Array(currentBoardSize * currentBoardSize);
+let paintedColors = new Uint8Array(currentBoardSize * currentBoardSize);
+let hovered = null;
+let animations = new Map();
+let zoneCounts = new Map();
+let zoneLabels = new Map();
+let targetCount = 0;
+let filledCount = 0;
+let running = false;
+let solved = false;
+let activePointer = null;
+let activeCell = null;
+let activeZone = null;
+let activePaintIndex = 1;
+let activeStrokeCells = [];
+let activeStrokeTarget = 0;
+let activeStrokeInvalid = false;
+let strokeSerial = 0;
+let strokeHistory = [];
+let musicPlaying = false;
+let musicContext = null;
+let musicTimer = null;
+let musicStep = 0;
+
+const MUSIC_PATTERN = [261.63, 329.63, 392.0, 523.25, 392.0, 329.63];
+const stateHost = (document && document.host) ? document.host : (window.__okitamaStateHost || null);
+
+function syncStateTheme() {
+  if (!stateHost || !stateHost.classList) return;
+  stateHost.classList.toggle('state-solved', solved);
+  stateHost.classList.toggle('state-unsolved', !solved);
+}
+syncStateTheme();
+
+function zonesAt(row, col) {
+  return zonesData[row * currentBoardSize + col];
+}
+
+function zoneAccent(zone) {
+  return ZONE_ACCENTS[zone % ZONE_ACCENTS.length];
+}
+
+function paintFill(index) {
+  if (index <= 0) {
+    return '#ffffff';
+  }
+  return PAINT_FILLS[(index - 1) % PAINT_FILLS.length];
+}
+
+function rebuildZoneMeta() {
+  zoneCounts = new Map();
+  zoneLabels = new Map();
+  for (let idx = 0; idx < zonesData.length; idx += 1) {
+    const zone = zonesData[idx];
+    const count = zoneCounts.get(zone) || 0;
+    zoneCounts.set(zone, count + 1);
+    const meta = zoneLabels.get(zone) || {
+      cells: [],
+      anchorIdx: -1,
+    };
+    meta.cells.push(idx);
+    zoneLabels.set(zone, meta);
+  }
+  for (const [zone, meta] of zoneLabels.entries()) {
+    if (meta.cells.length === 0) continue;
+    const seed = hashZone(zone, meta.cells.length, currentDifficulty, currentBoardSize);
+    meta.anchorIdx = meta.cells[seed % meta.cells.length];
+  }
+  targetCount = zonesData.length;
+}
+
+function hashZone(zone, cellCount, difficulty, size) {
+  let x = (zone + 1) * 1_000_003;
+  x ^= (cellCount + 1) * 97_003;
+  x ^= (difficulty + 1) * 13_337;
+  x ^= (size + 1) * 7_919;
+  x ^= x << 13;
+  x ^= x >> 7;
+  x ^= x << 17;
+  return x >>> 0;
+}
+
+function isAdjacent(aRow, aCol, bRow, bCol) {
+  return Math.abs(aRow - bRow) <= 1 && Math.abs(aCol - bCol) <= 1;
+}
+
+function validLayout(cols) {
+  const usedCols = new Set();
+  const usedZones = new Set();
+  const positions = [];
+  for (let row = 0; row < currentBoardSize; row += 1) {
+    const col = cols[row];
+    if (col < 0 || col >= currentBoardSize || usedCols.has(col)) return false;
+    usedCols.add(col);
+    const zone = zonesAt(row, col);
+    if (usedZones.has(zone)) return false;
+    usedZones.add(zone);
+    for (const [pr, pc] of positions) {
+      if (isAdjacent(row, col, pr, pc)) return false;
+    }
+    positions.push([row, col]);
+  }
+  return true;
+}
+
+function enumerateLayouts() {
+  const cols = Array.from({ length: currentBoardSize }, (_, i) => i);
+  const found = [];
+  function permute(i) {
+    if (i === cols.length) {
+      if (validLayout(cols)) found.push(cols.slice());
+      return;
+    }
+    for (let j = i; j < cols.length; j += 1) {
+      [cols[i], cols[j]] = [cols[j], cols[i]];
+      permute(i + 1);
+      [cols[i], cols[j]] = [cols[j], cols[i]];
+    }
+  }
+  permute(0);
+  return found;
+}
+
+function syncHud() {
+  // Intentionally empty: progress is shown via status text only.
+}
+
+function stopMusic() {
+  if (musicTimer) {
+    clearInterval(musicTimer);
+    musicTimer = null;
+  }
+  if (musicContext) {
+    musicContext.close().catch(() => {});
+    musicContext = null;
+  }
+  musicStep = 0;
+}
+
+async function startMusic() {
+  if (!musicContext) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return false;
+    musicContext = new Ctor();
+  }
+  if (musicContext.state === 'suspended') {
+    await musicContext.resume();
+  }
+  if (musicTimer) return true;
+  musicTimer = setInterval(() => {
+    if (!musicContext) return;
+    const freq = MUSIC_PATTERN[musicStep % MUSIC_PATTERN.length];
+    const now = musicContext.currentTime;
+    const osc = musicContext.createOscillator();
+    const gain = musicContext.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.02, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+    osc.connect(gain);
+    gain.connect(musicContext.destination);
+    osc.start(now);
+    osc.stop(now + 0.46);
+    musicStep += 1;
+  }, 480);
+  return true;
+}
+
+function setStatus(text, accent = '') {
+  statusEl.innerHTML = accent ? `${text} <strong>${accent}</strong>` : text;
+}
+
+function setAnimation(row, col, kind) {
+  animations.set(row * currentBoardSize + col, {
+    kind,
+    started: performance.now(),
+    duration: kind === 'error' ? 340 : 260,
+  });
+}
+
+function clearTimers() {
+  activePointer = null;
+  activeCell = null;
+}
+
+function resizeCanvas() {
+  const rect = shell.getBoundingClientRect();
+  const topbar = document.querySelector('.topbar')?.getBoundingClientRect();
+  const hud = document.querySelector('.hud')?.getBoundingClientRect();
+  const statusRow = document.querySelector('.status-row')?.getBoundingClientRect();
+  const statusBelow = document.querySelector('.status-below')?.getBoundingClientRect();
+  const verticalBudget = window.innerHeight
+    - (topbar?.height || 0)
+    - (hud?.height || 0)
+    - (statusRow?.height || 0)
+    - (statusBelow?.height || 0)
+    - 16 * 2
+    - 12 * 3;
+  const widthBudget = Math.floor(rect.width - 24);
+  const heightBudget = Math.floor(verticalBudget - 24);
+  const size = Math.max(280, Math.floor(Math.min(widthBudget, heightBudget)));
+  canvas.width = size;
+  canvas.height = size;
+  boardSize = size;
+  cellSize = boardSize / currentBoardSize;
+  originX = 0;
+  originY = 0;
+}
+
+function cellAtPoint(x, y) {
+  const cx = x - originX;
+  const cy = y - originY;
+  if (cx < 0 || cy < 0 || cx >= boardSize || cy >= boardSize) return null;
+  return {
+    row: Math.floor(cy / cellSize),
+    col: Math.floor(cx / cellSize),
+  };
+}
+
+function shade(hex, amount) {
+  const n = hex.replace('#', '');
+  const r = parseInt(n.slice(0, 2), 16);
+  const g = parseInt(n.slice(2, 4), 16);
+  const b = parseInt(n.slice(4, 6), 16);
+  const clamp = (v) => Math.max(0, Math.min(255, v));
+  return `rgb(${clamp(Math.round(r + 255 * amount))}, ${clamp(Math.round(g + 255 * amount))}, ${clamp(Math.round(b + 255 * amount))})`;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w * 0.5, h * 0.5);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.lineTo(x + w - rr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+  ctx.lineTo(x + w, y + h - rr);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  ctx.lineTo(x + rr, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+  ctx.lineTo(x, y + rr);
+  ctx.quadraticCurveTo(x, y, x + rr, y);
+  ctx.closePath();
+}
+
+function drawX(ctx, cx, cy, size) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(28, 36, 46, 0.54)';
+  ctx.lineWidth = Math.max(3, size * 0.10);
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.26, cy - size * 0.26);
+  ctx.lineTo(cx + size * 0.26, cy + size * 0.26);
+  ctx.moveTo(cx + size * 0.26, cy - size * 0.26);
+  ctx.lineTo(cx - size * 0.26, cy + size * 0.26);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawNumber(ctx, cx, cy, size, value, pulse = 1, alpha = 1, fillColor = 'rgba(255,255,255,0.98)') {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = 'rgba(26, 41, 62, 0.12)';
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = fillColor;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * 0.36 * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.5, size * 0.05);
+  ctx.strokeStyle = 'rgba(35, 52, 73, 0.12)';
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#203245';
+  ctx.font = `800 ${Math.floor(size * 0.46)}px "Zen Kaku Gothic New", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(value), 0, 1);
+  ctx.restore();
+}
+
+function drawVillager(ctx, cx, cy, size, villager, pulse = 1) {
+  const r = size * 0.36 * pulse;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.shadowColor = 'rgba(0,0,0,0.14)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 5;
+  ctx.fillStyle = villager.coat;
+  ctx.beginPath();
+  roundRect(ctx, -r * 0.60, -r * 0.08, r * 1.20, r * 1.05, r * 0.34);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  drawVillagerFace(ctx, villager, r);
+  ctx.restore();
+}
+
+function drawCircleFace(ctx, faceFill, detailFill, r, accentFill = detailFill) {
+  ctx.fillStyle = accentFill;
+  ctx.beginPath();
+  ctx.arc(-r * 0.22, -r * 0.66, r * 0.08, 0, Math.PI * 2);
+  ctx.arc(r * 0.22, -r * 0.66, r * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = faceFill;
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.28, r * 0.50, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = detailFill;
+  ctx.beginPath();
+  ctx.arc(-r * 0.12, -r * 0.34, r * 0.045, 0, Math.PI * 2);
+  ctx.arc(r * 0.12, -r * 0.34, r * 0.045, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawVillagerFace(ctx, villager, r) {
+  const face = villager.skin;
+  const hair = villager.hair;
+  const accent = villager.accent;
+  const trim = villager.trim;
+
+  ctx.fillStyle = hair;
+  switch (villager.kind) {
+    case 'hood': {
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.18, r * 0.53, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.lineTo(r * 0.30, -r * 0.03);
+      ctx.lineTo(r * 0.18, r * 0.30);
+      ctx.lineTo(-r * 0.18, r * 0.30);
+      ctx.lineTo(-r * 0.30, -r * 0.03);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'cap': {
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.22, r * 0.46, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = trim;
+      roundRect(ctx, -r * 0.42, -r * 0.22, r * 0.84, r * 0.12, r * 0.06);
+      ctx.fill();
+      break;
+    }
+    case 'ponytail': {
+      ctx.beginPath();
+      ctx.arc(-r * 0.20, -r * 0.22, r * 0.22, Math.PI * 1.15, Math.PI * 1.95);
+      ctx.arc(r * 0.18, -r * 0.18, r * 0.18, Math.PI * 1.0, Math.PI * 2.0);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(r * 0.46, -r * 0.08, r * 0.12, r * 0.20, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.arc(r * 0.50, r * 0.06, r * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'beanie':
+    default: {
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.22, r * 0.47, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = trim;
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.30, r * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+  }
+
+  ctx.fillStyle = trim;
+  roundRect(ctx, -r * 0.38, r * 0.12, r * 0.76, r * 0.42, r * 0.12);
+  ctx.fill();
+
+  ctx.fillStyle = accent;
+  roundRect(ctx, -r * 0.36, r * 0.12, r * 0.72, r * 0.12, r * 0.06);
+  ctx.fill();
+
+  ctx.fillStyle = face;
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.12, r * 0.31, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2f2a27';
+  ctx.beginPath();
+  ctx.arc(-r * 0.11, -r * 0.16, r * 0.025, 0, Math.PI * 2);
+  ctx.arc(r * 0.11, -r * 0.16, r * 0.025, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#8a4c42';
+  ctx.lineWidth = Math.max(1.2, r * 0.04);
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.05, r * 0.08, 0.15, Math.PI - 0.15);
+  ctx.stroke();
+
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(-r * 0.12, r * 0.34, r * 0.08, 0, Math.PI * 2);
+  ctx.arc(r * 0.12, r * 0.34, r * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBoard(now) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#13253f');
+  bg.addColorStop(1, '#1e3554');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.0015);
+
+  for (let r = 0; r < currentBoardSize; r += 1) {
+    for (let c = 0; c < currentBoardSize; c += 1) {
+      const idx = r * currentBoardSize + c;
+      const zone = zonesData[idx];
+      const x = c * cellSize;
+      const y = r * cellSize;
+      const isHover = hovered && hovered.row === r && hovered.col === c;
+      const colorIndex = paintedColors[idx];
+      const isFixed = colorIndex !== 0;
+      const isActive = activeCell && activeCell.row === r && activeCell.col === c && activePointer !== null;
+      const anim = animations.get(idx);
+      let scale = isActive ? 1.03 : 1;
+      let shakeX = 0;
+      let shakeY = 0;
+
+      if (anim) {
+        const t = Math.min(1, (now - anim.started) / anim.duration);
+        if (anim.kind === 'fix') {
+          scale = 0.72 + 0.28 * (1 - Math.pow(1 - t, 3));
+          if (t >= 1) animations.delete(idx);
+        } else if (anim.kind === 'error') {
+          const amp = (1 - t) * 5;
+          shakeX = Math.sin(t * 28) * amp;
+          shakeY = Math.cos(t * 22) * amp * 0.35;
+          if (t >= 1) animations.delete(idx);
+        } else if (anim.kind === 'mark') {
+          scale = 0.9 + 0.1 * pulse;
+          if (t >= 1) animations.delete(idx);
+        }
+      }
+
+      const fill = paintFill(zone + 1);
+      ctx.save();
+      ctx.translate(x + shakeX + cellSize / 2, y + shakeY + cellSize / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-cellSize / 2, -cellSize / 2);
+      ctx.shadowColor = isActive ? 'rgba(15, 23, 42, 0.18)' : 'transparent';
+      ctx.shadowBlur = isActive ? 12 : 0;
+      ctx.shadowOffsetY = isActive ? 4 : 0;
+      ctx.fillStyle = isFixed ? paintFill(colorIndex) : '#ffffff';
+      roundRect(ctx, 3.5, 3.5, cellSize - 7, cellSize - 7, cellSize * 0.18);
+      ctx.fill();
+
+      ctx.lineWidth = isHover || isActive ? 2.4 : 1.3;
+      ctx.strokeStyle = isFixed
+        ? shade(zoneAccent(colorIndex), -0.18)
+        : (isHover ? 'rgba(94, 118, 152, 0.46)' : 'rgba(50, 64, 88, 0.10)');
+      ctx.stroke();
+
+      if (!isFixed) {
+        ctx.fillStyle = 'rgba(255,255,255,0.68)';
+        roundRect(ctx, 8, 8, cellSize - 16, cellSize - 16, cellSize * 0.14);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        roundRect(ctx, 8, 8, cellSize - 16, cellSize - 16, cellSize * 0.14);
+        ctx.fill();
+      }
+
+      if (isActive) {
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        roundRect(ctx, 2, 2, cellSize - 4, cellSize - 4, cellSize * 0.2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+  }
+
+  for (const [zone, meta] of zoneLabels.entries()) {
+    const count = zoneCounts.get(zone) || 0;
+    if (count === 0) continue;
+    const anchorIdx = meta.anchorIdx;
+    if (anchorIdx < 0) continue;
+    const anchorRow = Math.floor(anchorIdx / currentBoardSize);
+    const anchorCol = anchorIdx % currentBoardSize;
+    const centerX = (anchorCol + 0.5) * cellSize;
+    const centerY = (anchorRow + 0.5) * cellSize;
+    const anchorFixed = paintedColors[anchorIdx] !== 0;
+    drawNumber(
+      ctx,
+      centerX,
+      centerY,
+      cellSize * 0.88,
+      count,
+      anchorFixed ? 1 : 0.96,
+      anchorFixed ? 0.98 : 0.92,
+      anchorFixed ? 'rgba(255,255,255,0.94)' : 'rgba(255,255,255,0.98)',
+    );
+  }
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.26)';
+  ctx.lineWidth = 4;
+  roundRect(ctx, 1.5, 1.5, boardSize - 3, boardSize - 3, 24);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function updateSolvedState() {
+  const nextSolved = paintedColors.length > 0 && filledCount >= paintedColors.length;
+  if (nextSolved !== solved) {
+    solved = nextSolved;
+    overlay.classList.toggle('show', solved);
+    syncStateTheme();
+    if (solved) {
+      setStatus('陣形を立て直しました', 'ゲームクリアー');
+      window.dispatchEvent(new CustomEvent('jindori-solved'));
+    }
+  }
+}
+
+function applyPaint(row, col) {
+  if (activeStrokeInvalid) {
+    return false;
+  }
+  const idx = row * currentBoardSize + col;
+  if (paintedColors[idx] !== 0) {
+    return false;
+  }
+  paintedColors[idx] = activePaintIndex;
+  filledCount += 1;
+  if (!activeStrokeCells.includes(idx)) {
+    activeStrokeCells.push(idx);
+  }
+  setAnimation(row, col, 'fix');
+  syncHud();
+  updateSolvedState();
+  setStatus(`選択中 R${row + 1} C${col + 1}`, `${filledCount}/${paintedColors.length}`);
+  return true;
+}
+
+function clearZone(zone) {
+  const meta = zoneLabels.get(zone);
+  if (!meta) {
+    return false;
+  }
+  let changed = false;
+  for (const idx of meta.cells) {
+    if (paintedColors[idx] === 0) continue;
+    paintedColors[idx] = 0;
+    filledCount = Math.max(0, filledCount - 1);
+    changed = true;
+  }
+  if (changed) {
+    syncHud();
+    updateSolvedState();
+  }
+  return changed;
+}
+
+function clearPaintedCells(indices) {
+  let changed = false;
+  for (const idx of indices) {
+    if (paintedColors[idx] === 0) continue;
+    paintedColors[idx] = 0;
+    filledCount = Math.max(0, filledCount - 1);
+    changed = true;
+  }
+  if (changed) {
+    syncHud();
+    updateSolvedState();
+  }
+  return changed;
+}
+
+function undoLastStroke() {
+  const lastStroke = strokeHistory.pop();
+  if (!lastStroke || lastStroke.length === 0) {
+    setStatus('戻せる一手がないよ', 'そのまま');
+    return false;
+  }
+  clearPaintedCells(lastStroke);
+  setStatus('一手戻した', 'やり直し');
+  return true;
+}
+
+function resetPuzzle() {
+  paintedColors.fill(0);
+  filledCount = 0;
+  solved = false;
+  overlay.classList.remove('show');
+  syncStateTheme();
+  activePointer = null;
+  activeCell = null;
+  activeZone = null;
+  activeStrokeCells = [];
+  activeStrokeTarget = 0;
+  activeStrokeInvalid = false;
+  strokeHistory = [];
+  syncHud();
+  setStatus('白いパネルをスライドして固定しよう', 'やり直し');
+}
+
+function applyPuzzleSpec(spec) {
+  const nextBoardSize = spec.size ?? currentBoardSize;
+  if (nextBoardSize !== currentBoardSize) {
+    currentBoardSize = nextBoardSize;
+    zonesData = new Uint8Array(currentBoardSize * currentBoardSize);
+    fixedCells = new Uint8Array(currentBoardSize * currentBoardSize);
+    paintedColors = new Uint8Array(currentBoardSize * currentBoardSize);
+  }
+  currentDifficulty = spec.difficulty ?? currentDifficulty;
+  zonesData = Uint8Array.from(spec.zones ?? []);
+  currentVillager = VILLAGERS[(spec.animal_kind ?? 0) % VILLAGERS.length];
+  rebuildZoneMeta();
+  resetPuzzle();
+}
+
+function loadPuzzle(nextDifficulty = currentDifficulty) {
+  currentBoardSize = BOARD_SIZE;
+  const spec = JSON.parse(wasm.animal_puzzle_generate(BOARD_SIZE, nextDifficulty, puzzleNonce));
+  applyPuzzleSpec(spec);
+  resizeCanvas();
+}
+
+function useHint() {
+  for (let r = 0; r < currentBoardSize; r += 1) {
+    for (let c = 0; c < currentBoardSize; c += 1) {
+      const idx = r * currentBoardSize + c;
+      if (paintedColors[idx] !== 0) continue;
+      hovered = { row: r, col: c };
+      setStatus(`ここを固定しよう R${r + 1} C${c + 1}`, 'ヒント');
+      return;
+    }
+  }
+  setStatus('もうヒントはないよ', '全部完成');
+}
+
+function updatePointerPosition(event) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+  return cellAtPoint(x, y);
+}
+
+function onPointerDown(event) {
+  const pos = updatePointerPosition(event);
+  if (!pos) return;
+  hovered = pos;
+  activePointer = event.pointerId;
+  activeCell = pos;
+  activeStrokeCells = [];
+  activePaintIndex = ((strokeSerial % PAINT_FILLS.length) + 1);
+  strokeSerial += 1;
+  activeStrokeInvalid = false;
+  applyPaint(pos.row, pos.col);
+  if (canvas.setPointerCapture && event.pointerId !== undefined) {
+    try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+  }
+}
+
+function onPointerUp(event) {
+  if (activePointer !== event.pointerId) return;
+  if (activeStrokeInvalid) {
+    clearPaintedCells(activeStrokeCells);
+    setStatus('途中でやめたのでキャンセル', 'もう一度');
+  } else if (activeStrokeCells.length > 0) {
+    strokeHistory.push(activeStrokeCells.slice());
+  }
+  activePointer = null;
+  activeCell = null;
+  activeZone = null;
+  activeStrokeCells = [];
+  activeStrokeInvalid = false;
+}
+
+canvas.addEventListener('pointermove', (event) => {
+  const pos = updatePointerPosition(event);
+  hovered = pos;
+  if (pos && activePointer === event.pointerId) {
+    activeCell = pos;
+    applyPaint(pos.row, pos.col);
+  }
+});
+canvas.addEventListener('pointerleave', () => {
+  hovered = null;
+});
+canvas.addEventListener('pointercancel', () => {
+  activePointer = null;
+  activeCell = null;
+  activeZone = null;
+  activeStrokeInvalid = false;
+});
+canvas.addEventListener('pointerdown', onPointerDown);
+canvas.addEventListener('pointerup', onPointerUp);
+canvas.addEventListener('click', (event) => {
+  event.preventDefault();
+});
+canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+window.addEventListener('resize', resizeCanvas);
+
+document.getElementById('btn-reset').addEventListener('click', resetPuzzle);
+document.getElementById('btn-undo').addEventListener('click', undoLastStroke);
+document.getElementById('btn-new-board').addEventListener('click', () => {
+  puzzleNonce = (puzzleNonce + 1) >>> 0;
+  loadPuzzle(currentDifficulty);
+  setStatus('違う盤面を作ったよ', '5×5');
+});
+
+async function start() {
+  try {
+    await init({ module_or_path: './wasm/wasm_app_bg.wasm?v=20260706-23' });
+    loadPuzzle(currentDifficulty);
+    rebuildZoneMeta();
+    resizeCanvas();
+    syncHud();
+    syncStateTheme();
+    running = true;
+    const loop = (now) => {
+      if (!running) return;
+      drawBoard(now);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  } catch (err) {
+    console.error('Jindori init failed:', err);
+    overlay.classList.add('show');
+    overlay.querySelector('h2').textContent = 'Load error';
+    overlay.querySelector('p').textContent = 'WASM 初期化に失敗しました。';
+    setStatus('Failed to load puzzle.', String(err?.message ?? err));
+  }
+}
+
+start();
+</script>
+</body>
+</html>

@@ -6,5 +6,9 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+jindori = []
+
 [dependencies]
 srpg_core = { path = "../srpg_core" }

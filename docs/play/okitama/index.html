@@ -232,11 +232,15 @@ body{
   display:flex;
   justify-content:center;
   width:100%;
-  min-height:min(72vh, 680px);
+  height: min(634px, calc(100dvh - 24px));
+  min-height: min(634px, calc(100dvh - 24px));
   overflow:visible;
 }
 @media (max-width: 640px){
-  .srpg-mount{min-height:min(78vh, 620px)}
+  .srpg-mount{
+    height: min(634px, calc(100dvh - 16px));
+    min-height: min(634px, calc(100dvh - 16px));
+  }
 }
 
 .srpg-panel::before{
@@ -272,6 +276,7 @@ body{
 }
 
 .copy-panel{
+  min-height: min(634px, calc(100dvh - 24px));
   padding: 14px 12px 16px;
   overflow: hidden;
   background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,251,255,0.90));
@@ -280,7 +285,8 @@ body{
 
 .copy-mount{
   width:100%;
-  min-height:min(98vh, 940px);
+  height: min(634px, calc(100dvh - 24px));
+  min-height: min(634px, calc(100dvh - 24px));
   overflow:visible;
   border-radius:0;
   background:transparent;
@@ -289,7 +295,11 @@ body{
 }
 @media (max-width: 640px){
   .copy-mount{
-    min-height:min(94vh, 820px);
+    height: min(634px, calc(100dvh - 16px));
+    min-height: min(634px, calc(100dvh - 16px));
+  }
+  .copy-panel{
+    min-height: min(634px, calc(100dvh - 16px));
   }
 }
 
@@ -551,11 +561,15 @@ body{
       <img class="m flip" src="tokimune_bust.png" alt="前に出ようとする時宗丸">
     </div>
     <div class="b sab left"><span class="who">三郎</span><br>五郎（時宗丸）、待て！ 敵は南の強風を利用して、こちらの狙いを狂わせようとしている！ 一度引いて陣形を立て直すべきだ！</div>
-    <div class="narr">三郎が時宗丸の服の袖を引いて制止する。しかし、敵の激しい猛攻により、雪玉は大将である梵天丸のすぐ近くまで迫っていた。</div>
-    <div class="narr">この窮地――時宗丸の雪国育ちの野生の勘が、激しく叫んだ。</div>
+  </div>
+
+  <div class="panel reveal bg-morning copy-panel">
+    <div class="copy-mount" id="jindoriMount" aria-label="雪陣取り"></div>
   </div>
 
   <div class="panel reveal bg-morning">
+    <div class="narr">この窮地――時宗丸の雪国育ちの野生の勘が、激しく叫んだ。</div>
+    <div class="narr">三郎が時宗丸の服の袖を引いて制止する。しかし、敵の激しい猛攻により、雪玉は大将である梵天丸のすぐ近くまで迫っていた。</div>
     <div class="b tok right"><span class="who">時宗丸</span><br>いや、ここで引いたら小十郎の思う壺だ！ 三郎、お前の言う『南の強風』に向かって、俺は突っ込む！</div>
     <div class="b sab left"><span class="who">三郎</span><br>何！？ 正気か、風下から突っ込めば敵の格好の的だぞ！</div>
     <div class="b tok right"><span class="who">時宗丸</span><br>風が強いってことは、敵の雪玉だって流されるってことだ！ 狙いがブレる隙を突いて、一気に距離を詰めりゃあ俺の勝ちだ！</div>
@@ -777,7 +791,7 @@ body{
     if (!mount || typeof mount.attachShadow !== 'function') {
       console.warn('Villager search mount unavailable.');
     } else {
-      const sourceUrl = new URL('./villager-search/index.html', import.meta.url);
+      const sourceUrl = new URL('./villager-search/index.html?v=20260706-1', import.meta.url);
       const source = await fetch(sourceUrl).then((res) => res.text());
       const parsed = new DOMParser().parseFromString(source, 'text/html');
       const shadow = mount.attachShadow({ mode: 'open' });
@@ -837,6 +851,78 @@ body{
           'window',
           'return (async () => {\n' + scriptBody + '\n})();',
         );
+        window.__okitamaStateHost = mount;
+        await run(init, wasm, shadow, window);
+      }
+    }
+  </script>
+
+  <script type="module">
+    const mount = document.getElementById('jindoriMount');
+    if (!mount || typeof mount.attachShadow !== 'function') {
+      console.warn('Jindori mount unavailable.');
+    } else {
+      const sourceUrl = new URL('./jindori/index.html?v=20260706-23', import.meta.url);
+      const source = await fetch(sourceUrl).then((res) => res.text());
+      const parsed = new DOMParser().parseFromString(source, 'text/html');
+      const shadow = mount.attachShadow({ mode: 'open' });
+
+      const normalizeStyle = (cssText) => cssText
+        .replace(/html,\s*body\s*\{/g, ':host {')
+        .replace(/\bbody\s*\{/g, ':host {')
+        .replace(/width:\s*min\(560px,\s*calc\(100vw - 28px\)\);/g, 'width: min(100%, 560px);')
+        .replace(/width:\s*min\(900px,\s*calc\(100vw - 12px\)\);/g, 'width: min(100%, 900px);')
+        .replace(/font-family:\s*var\(--engine-font,\s*"Hiragino Sans",\s*"Noto Sans JP",\s*system-ui,\s*sans-serif\);/g, 'font-family: inherit;');
+
+      const engineCss = document.createElement('link');
+      engineCss.rel = 'stylesheet';
+      engineCss.href = new URL('../engine.css', import.meta.url).href;
+      shadow.append(engineCss);
+
+      const hostStyle = document.createElement('style');
+      hostStyle.textContent = `
+        :host {
+          display: block;
+          width: 100%;
+          max-width: 100%;
+          overflow: hidden;
+          font-family: inherit;
+        }
+        main {
+          width: 100%;
+          max-width: 100%;
+          overflow: hidden;
+        }
+      `;
+      shadow.append(hostStyle);
+
+      parsed.head.querySelectorAll('style').forEach((styleEl) => {
+        const style = document.createElement('style');
+        style.textContent = normalizeStyle(styleEl.textContent || '');
+        shadow.append(style);
+      });
+
+      const bodyChildren = Array.from(parsed.body.children).filter((child) => child.tagName !== 'SCRIPT');
+      for (const child of bodyChildren) {
+        shadow.append(child.cloneNode(true));
+      }
+
+      const scriptEl = parsed.querySelector('script[type="module"]');
+      if (scriptEl) {
+        const wasmModule = await import('./jindori/wasm/wasm_app.js?v=20260706-23');
+        const init = wasmModule.default;
+        const wasm = wasmModule;
+        const scriptBody = (scriptEl.textContent || '')
+          .replace(/^import init, \* as wasm from '.\/wasm\/wasm_app\.js\?v=[^']+';\s*/m, '')
+          .replace(/\.\/wasm\//g, './jindori/wasm/');
+        const run = new Function(
+          'init',
+          'wasm',
+          'document',
+          'window',
+          'return (async () => {\n' + scriptBody + '\n})();',
+        );
+        window.__okitamaStateHost = mount;
         await run(init, wasm, shadow, window);
       }
     }

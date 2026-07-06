@@ -1195,3 +1195,6 @@ fn pop_lowest(open: &mut Vec<(i32, i32, i32)>) -> Option<(i32, i32, i32)> {
     }
     Some(open.swap_remove(best_index))
 }
+
+#[cfg(feature = "jindori")]
+mod jindori;
