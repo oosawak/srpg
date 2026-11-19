@@ -58,6 +58,11 @@ async function loadWasm() {
     reset() {
       exports.srpg_reset();
     },
+    set_scenario(scenarioId) {
+      if (typeof exports.srpg_set_scenario === "function") {
+        exports.srpg_set_scenario(scenarioId | 0);
+      }
+    },
   };
 
   window.srpgGame = api;

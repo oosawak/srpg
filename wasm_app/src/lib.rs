@@ -6,6 +6,12 @@ use std::sync::{Mutex, OnceLock};
 type UnitId = u32;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+enum ScenarioKind {
+    Demo,
+    Hitotoribashi,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Team {
     Player,
     Enemy,
@@ -39,6 +45,37 @@ struct UnitState {
     range: i32,
     moved: bool,
     acted: bool,
+    leader: bool,
+    name: &'static str,
+    role: &'static str,
+    tag: &'static str,
+    basis: &'static str,
+    note: &'static str,
+}
+
+#[derive(Clone)]
+enum TurnEvent {
+    Move {
+        unit_id: UnitId,
+        from_x: i32,
+        from_y: i32,
+        to_x: i32,
+        to_y: i32,
+    },
+    Attack {
+        attacker_id: UnitId,
+        target_id: UnitId,
+        damage: i32,
+        killed: bool,
+        target_hp: i32,
+    },
+    Ability {
+        unit_id: UnitId,
+        name: &'static str,
+        target_id: Option<UnitId>,
+        damage: i32,
+        healed: i32,
+    },
 }
 
 #[derive(Clone)]
@@ -50,6 +87,7 @@ struct AbilityView {
 }
 
 struct GameState {
+    scenario: ScenarioKind,
     view_mode: ViewMode,
     turn_number: u32,
     phase: Phase,
@@ -59,7 +97,11 @@ struct GameState {
     move_origin: Option<(UnitId, i32, i32, bool)>,
     message: String,
     map: Map,
+    bridge_tiles: HashSet<(i32, i32)>,
+    escape_tiles: HashSet<(i32, i32)>,
     units: Vec<UnitState>,
+    turn_events: Vec<TurnEvent>,
+    event_seq: u32,
     render_buffer: String,
 }
 
@@ -72,7 +114,27 @@ pub extern "C" fn srpg_init() {
 
 #[no_mangle]
 pub extern "C" fn srpg_reset() {
-    with_game_mut(|game| *game = GameState::new());
+    with_game_mut(|game| {
+        let scenario = game.scenario;
+        let view_mode = game.view_mode;
+        *game = GameState::new_for_scenario(scenario);
+        game.view_mode = view_mode;
+        game.refresh_render();
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn srpg_set_scenario(scenario_id: u32) {
+    with_game_mut(|game| {
+        let scenario = match scenario_id {
+            1 => ScenarioKind::Hitotoribashi,
+            _ => ScenarioKind::Demo,
+        };
+        let view_mode = game.view_mode;
+        *game = GameState::new_for_scenario(scenario);
+        game.view_mode = view_mode;
+        game.refresh_render();
+    });
 }
 
 #[no_mangle]
@@ -173,25 +235,151 @@ fn game_cell() -> &'static Mutex<GameState> {
 
 impl GameState {
     fn new() -> Self {
-        let map = build_demo_map();
-        let units = vec![
-            UnitState::new(1, 1, Job::Ashigaru, Team::Player, 2, 2, 100, 14, 4, 1),
-            UnitState::new(2, 1, Job::Yumi, Team::Player, 1, 5, 80, 12, 4, 3),
-            UnitState::new(3, 2, Job::Teppo, Team::Enemy, 6, 2, 90, 13, 3, 2),
-            UnitState::new(4, 2, Job::Ninja, Team::Enemy, 6, 5, 70, 11, 4, 1),
-        ];
+        Self::new_for_scenario(ScenarioKind::Hitotoribashi)
+    }
+
+    fn new_for_scenario(scenario: ScenarioKind) -> Self {
+        let (map, bridge_tiles, escape_tiles, units, message, initial_tile) = match scenario {
+            ScenarioKind::Demo => {
+                let map = build_demo_map();
+                let units = vec![
+                    UnitState::new(1, 1, Job::Ashigaru, Team::Player, 2, 2, 100, 14, 4, 1)
+                        .with_meta(true, "", "", "", "", ""),
+                    UnitState::new(2, 1, Job::Yumi, Team::Player, 1, 5, 80, 12, 4, 3),
+                    UnitState::new(3, 2, Job::Teppo, Team::Enemy, 6, 2, 90, 13, 3, 2)
+                        .with_meta(true, "", "", "", "", ""),
+                    UnitState::new(4, 2, Job::Ninja, Team::Enemy, 6, 5, 70, 11, 4, 1),
+                ];
+                (
+                    map,
+                    HashSet::new(),
+                    HashSet::new(),
+                    units,
+                    "自軍の行動です".to_string(),
+                    (2, 2),
+                )
+            }
+            ScenarioKind::Hitotoribashi => {
+                let (map, bridge_tiles, escape_tiles) = build_hitotoribashi_map();
+                let units = vec![
+                    UnitState::new(1, 1, Job::Strategist, Team::Player, 4, 4, 90, 13, 2, 1)
+                        .with_meta(
+                            true,
+                            "伊達政宗",
+                            "伊達本隊・大将",
+                            "masamune",
+                            "fact",
+                            "19歳。父・輝宗の横死直後。矢弾が迫る中、北端（小浜方面）の離脱路を目指す。",
+                        ),
+                    UnitState::new(2, 1, Job::Yari, Team::Player, 4, 6, 135, 17, 3, 1)
+                        .with_meta(
+                            false,
+                            "鬼庭良直",
+                            "殿（しんがり）・左月斎",
+                            "oniwa",
+                            "legend",
+                            "73歳。政宗より金色の采配を預かり、黄の綿帽子を被って殿を務め討死したと伝わる。",
+                        ),
+                    UnitState::new(3, 1, Job::Ashigaru, Team::Player, 3, 4, 115, 16, 4, 1)
+                        .with_meta(
+                            false,
+                            "伊達成実",
+                            "成実隊（退却援護）",
+                            "shigezane",
+                            "fact",
+                            "数え18歳。大森城主。崩れる陣の中で踏みとどまり、政宗離脱の時を稼いだ。",
+                        ),
+                    UnitState::new(4, 1, Job::Yumi, Team::Player, 5, 3, 75, 13, 3, 3)
+                        .with_meta(
+                            false,
+                            "伊達弓隊",
+                            "北岸援護（模式配置）",
+                            "date_yumi",
+                            "fiction",
+                            "北岸の段々畑から橋の攻防を援護する弓隊。部隊編成と配置はゲーム用の模式図。",
+                        ),
+                    UnitState::new(5, 2, Job::Strategist, Team::Enemy, 4, 9, 120, 16, 3, 1)
+                        .with_meta(
+                            true,
+                            "佐竹義重",
+                            "南奥州連合・総大将",
+                            "satake",
+                            "fact",
+                            "常陸の大名。南奥州諸侯連合を率い、約3万（伝承値）の軍勢で伊達軍に迫る。",
+                        ),
+                    UnitState::new(6, 2, Job::Yari, Team::Enemy, 3, 7, 100, 15, 3, 1)
+                        .with_meta(
+                            false,
+                            "蘆名隊",
+                            "会津・蘆名勢",
+                            "ashina",
+                            "fact",
+                            "会津の名族・蘆名氏の主力勢。南岸から人取橋の突破を狙う。",
+                        ),
+                    UnitState::new(7, 2, Job::Yumi, Team::Enemy, 6, 7, 80, 13, 3, 3)
+                        .with_meta(
+                            false,
+                            "岩城隊",
+                            "浜通り・岩城勢",
+                            "iwaki",
+                            "fact",
+                            "岩城氏の弓隊。川越しに橋上の殿と伊達本隊へ矢を浴びせる。",
+                        ),
+                    UnitState::new(8, 2, Job::Yari, Team::Enemy, 4, 7, 90, 14, 3, 1)
+                        .with_meta(
+                            false,
+                            "連合先鋒・槍組",
+                            "連合先鋒（模式配置）",
+                            "coalition_yari",
+                            "fiction",
+                            "人取橋の南詰めへ押し寄せる連合軍先鋒。部隊構成と配置はゲーム用の模式図。",
+                        ),
+                    UnitState::new(9, 2, Job::Teppo, Team::Enemy, 5, 7, 75, 15, 3, 2)
+                        .with_meta(
+                            false,
+                            "連合先鋒・鉄砲組",
+                            "連合鉄砲隊（模式配置）",
+                            "coalition_teppo",
+                            "fiction",
+                            "橋上の殿へ銃撃を加える連合軍鉄砲組。部隊構成と配置はゲーム用の模式図。",
+                        ),
+                    UnitState::new(10, 2, Job::Ashigaru, Team::Enemy, 5, 8, 85, 13, 4, 1)
+                        .with_meta(
+                            false,
+                            "連合第二陣",
+                            "連合追撃勢（模式配置）",
+                            "coalition_ashigaru",
+                            "fiction",
+                            "橋の突破後に政宗を追撃する第二陣。部隊構成と配置はゲーム用の模式図。",
+                        ),
+                ];
+                (
+                    map,
+                    bridge_tiles,
+                    escape_tiles,
+                    units,
+                    "天正13年・人取橋の合戦。政宗を北端の小浜方面へ逃がせ。".to_string(),
+                    (4, 4),
+                )
+            }
+        };
 
         let mut game = Self {
+            scenario,
             view_mode: ViewMode::Isometric,
             turn_number: 1,
             phase: Phase::Player,
             selected_unit_id: Some(1),
-            selected_tile: Some((2, 2)),
+            selected_tile: Some(initial_tile),
             interaction_mode: None,
             move_origin: None,
-            message: "自軍の行動です".to_string(),
+            message,
             map,
+            bridge_tiles,
+            escape_tiles,
             units,
+            turn_events: Vec::new(),
+            event_seq: 0,
             render_buffer: String::new(),
         };
         game.refresh_render();
@@ -206,13 +394,15 @@ impl GameState {
         self.render_buffer.clear();
         let _ = write!(
             self.render_buffer,
-            "{{\"view_mode\":\"{}\",\"turn_number\":{},\"phase\":\"{}\",\"selected_unit_id\":{},\"interaction_mode\":{},\"message\":\"{}\",\"map\":{{\"width\":{},\"height\":{},\"tiles\":[",
+            "{{\"scenario\":\"{}\",\"view_mode\":\"{}\",\"turn_number\":{},\"phase\":\"{}\",\"selected_unit_id\":{},\"interaction_mode\":{},\"message\":\"{}\",\"event_seq\":{},\"map\":{{\"width\":{},\"height\":{},\"tiles\":[",
+            scenario_name(self.scenario),
             view_mode_name(summary.view_mode),
             summary.turn_number,
             summary.phase,
             opt_u32(summary.selected_unit_id),
             opt_str(summary.interaction_mode),
             json_escape(&summary.message),
+            self.event_seq,
             summary.map_width,
             summary.map_height
         );
@@ -221,15 +411,21 @@ impl GameState {
             if i > 0 {
                 self.render_buffer.push(',');
             }
+            let tx = tile_index_x(&self.map, i);
+            let ty = tile_index_y(&self.map, i);
+            let is_bridge = self.bridge_tiles.contains(&(tx, ty));
+            let is_escape = self.escape_tiles.contains(&(tx, ty));
             let _ = write!(
                 self.render_buffer,
-                "{{\"x\":{},\"y\":{},\"terrain\":\"{}\",\"height\":{},\"cover\":{},\"water\":{}}}",
-                tile_index_x(&self.map, i),
-                tile_index_y(&self.map, i),
+                "{{\"x\":{},\"y\":{},\"terrain\":\"{}\",\"height\":{},\"cover\":{},\"water\":{},\"bridge\":{},\"escape\":{}}}",
+                tx,
+                ty,
                 terrain_name(tile.terrain),
                 tile.height,
                 bool_json(tile.cover),
-                bool_json(tile.water)
+                bool_json(tile.water),
+                bool_json(is_bridge),
+                bool_json(is_escape)
             );
         }
 
@@ -240,7 +436,7 @@ impl GameState {
             }
             let _ = write!(
                 self.render_buffer,
-                "{{\"id\":{},\"clan\":{},\"job\":\"{:?}\",\"team\":\"{}\",\"x\":{},\"y\":{},\"hp\":{},\"max_hp\":{},\"atk\":{},\"mov\":{},\"range\":{},\"moved\":{},\"acted\":{}}}",
+                "{{\"id\":{},\"clan\":{},\"job\":\"{:?}\",\"team\":\"{}\",\"x\":{},\"y\":{},\"hp\":{},\"max_hp\":{},\"atk\":{},\"mov\":{},\"range\":{},\"moved\":{},\"acted\":{},\"leader\":{},\"name\":\"{}\",\"role\":\"{}\",\"tag\":\"{}\",\"basis\":\"{}\",\"note\":\"{}\"}}",
                 unit.id,
                 unit.clan,
                 unit.job,
@@ -253,7 +449,13 @@ impl GameState {
                 unit.mov,
                 unit.range,
                 bool_json(unit.moved),
-                bool_json(unit.acted)
+                bool_json(unit.acted),
+                bool_json(unit.leader),
+                json_escape(unit.name),
+                json_escape(unit.role),
+                json_escape(unit.tag),
+                json_escape(unit.basis),
+                json_escape(unit.note)
             );
         }
         self.render_buffer.push_str("],\"move_tiles\":[");
@@ -268,7 +470,62 @@ impl GameState {
         self.render_buffer.push_str(bool_json(summary.is_player_turn));
         self.render_buffer.push_str(",\"unit_count\":");
         let _ = write!(self.render_buffer, "{}", summary.unit_count);
-        self.render_buffer.push_str(",\"abilities\":[");
+        self.render_buffer.push_str(",\"turn_events\":[");
+        for (i, ev) in self.turn_events.iter().enumerate() {
+            if i > 0 {
+                self.render_buffer.push(',');
+            }
+            match ev {
+                TurnEvent::Move {
+                    unit_id,
+                    from_x,
+                    from_y,
+                    to_x,
+                    to_y,
+                } => {
+                    let _ = write!(
+                        self.render_buffer,
+                        "{{\"type\":\"move\",\"unit_id\":{},\"from_x\":{},\"from_y\":{},\"to_x\":{},\"to_y\":{}}}",
+                        unit_id, from_x, from_y, to_x, to_y
+                    );
+                }
+                TurnEvent::Attack {
+                    attacker_id,
+                    target_id,
+                    damage,
+                    killed,
+                    target_hp,
+                } => {
+                    let _ = write!(
+                        self.render_buffer,
+                        "{{\"type\":\"attack\",\"attacker_id\":{},\"target_id\":{},\"damage\":{},\"killed\":{},\"target_hp\":{}}}",
+                        attacker_id,
+                        target_id,
+                        damage,
+                        bool_json(*killed),
+                        target_hp
+                    );
+                }
+                TurnEvent::Ability {
+                    unit_id,
+                    name,
+                    target_id,
+                    damage,
+                    healed,
+                } => {
+                    let _ = write!(
+                        self.render_buffer,
+                        "{{\"type\":\"ability\",\"unit_id\":{},\"name\":\"{}\",\"target_id\":{},\"damage\":{},\"healed\":{}}}",
+                        unit_id,
+                        json_escape(name),
+                        opt_u32(*target_id),
+                        damage,
+                        healed
+                    );
+                }
+            }
+        }
+        self.render_buffer.push_str("],\"abilities\":[");
         let abilities = self
             .selected_player_unit()
             .map(ability_views)
@@ -350,18 +607,19 @@ impl GameState {
         if !matches!(self.phase, Phase::Player) {
             return;
         }
+        self.turn_events.clear();
 
         if let Some(unit) = self.unit_at(x, y).cloned() {
             self.selected_tile = Some((x, y));
             self.interaction_mode = None;
             if unit.team == Team::Player {
                 self.selected_unit_id = Some(unit.id);
-                self.message = format!("{} を選択", job_label(unit.job));
+                self.message = format!("{} を選択", unit.display_name());
             } else {
                 self.message = if self.can_attack_selected_tile() {
-                    format!("{} を確認 / 攻撃可能", job_label(unit.job))
+                    format!("{} を確認 / 攻撃可能", unit.display_name())
                 } else {
-                    format!("{} を確認", job_label(unit.job))
+                    format!("{} を確認", unit.display_name())
                 };
             }
             return;
@@ -384,12 +642,22 @@ impl GameState {
         let move_tiles = self.reachable_tiles(Some(selected));
         if move_tiles.contains(&(x, y)) && self.unit_at(x, y).is_none() {
             if let Some(unit) = self.units.iter_mut().find(|unit| unit.id == selected_id) {
+                let (from_x, from_y) = (unit.x, unit.y);
+                let label = unit.display_name().to_string();
                 unit.x = x;
                 unit.y = y;
                 unit.moved = true;
                 self.interaction_mode = None;
                 self.selected_tile = Some((x, y));
-                self.message = format!("{} が {},{} へ移動", job_label(unit.job), x, y);
+                self.message = format!("{} が {},{} へ移動", label, x, y);
+                self.turn_events.push(TurnEvent::Move {
+                    unit_id: selected_id,
+                    from_x,
+                    from_y,
+                    to_x: x,
+                    to_y: y,
+                });
+                self.event_seq = self.event_seq.wrapping_add(1);
                 return;
             }
         }
@@ -426,6 +694,7 @@ impl GameState {
     }
 
     fn attack_selected_tile(&mut self) -> bool {
+        self.turn_events.clear();
         let Some((x, y)) = self.selected_tile else {
             return false;
         };
@@ -457,15 +726,26 @@ impl GameState {
         let attack = self.units[attacker_index].atk;
         self.units[target_index].hp = (self.units[target_index].hp - attack).max(0);
         self.units[attacker_index].acted = true;
+        let killed = self.units[target_index].hp <= 0;
+        let target_id = self.units[target_index].id;
+        let target_hp = self.units[target_index].hp;
         self.message = format!(
             "{} が {} に {} ダメージ",
-            job_label(self.units[attacker_index].job),
-            job_label(self.units[target_index].job),
+            self.units[attacker_index].display_name(),
+            self.units[target_index].display_name(),
             attack
         );
-        if self.units[target_index].hp <= 0 {
+        if killed {
             self.message.push_str(" / 撃破");
         }
+        self.turn_events.push(TurnEvent::Attack {
+            attacker_id,
+            target_id,
+            damage: attack,
+            killed,
+            target_hp,
+        });
+        self.event_seq = self.event_seq.wrapping_add(1);
         self.check_victory_or_defeat();
         self.move_origin = None;
         true
@@ -475,7 +755,16 @@ impl GameState {
         let Some(tile) = self.map.get(x, y) else {
             return "マップ外".to_string();
         };
+        if self.bridge_tiles.contains(&(x, y)) {
+            return "人取橋 / 移動コスト 1 / 渡河可能".to_string();
+        }
+        if tile.terrain == Terrain::Water {
+            return "川 / 進入不可".to_string();
+        }
         let mut traits: Vec<String> = Vec::new();
+        if self.escape_tiles.contains(&(x, y)) {
+            traits.push("離脱マス（小浜方面）".to_string());
+        }
         if tile.cover {
             traits.push("遮蔽あり".to_string());
         }
@@ -511,6 +800,7 @@ impl GameState {
         if !matches!(self.phase, Phase::Player) {
             return;
         }
+        self.turn_events.clear();
         self.phase = Phase::Enemy;
         self.selected_unit_id = None;
         self.selected_tile = None;
@@ -518,6 +808,7 @@ impl GameState {
         self.move_origin = None;
         self.message = "敵の行動中".to_string();
         self.run_enemy_turn();
+        self.event_seq = self.event_seq.wrapping_add(1);
     }
 
     fn run_enemy_turn(&mut self) {
@@ -544,9 +835,10 @@ impl GameState {
 
             let mut steps = enemy_snapshot.mov;
             while steps > 0 {
-                let next = self.shortest_step((self.units[idx].x, self.units[idx].y), nearest, self.units[idx].id);
+                let cur = (self.units[idx].x, self.units[idx].y);
+                let next = self.shortest_step(cur, nearest, self.units[idx].id);
                 let Some(next) = next else { break };
-                if next == (self.units[idx].x, self.units[idx].y) {
+                if next == cur {
                     break;
                 }
                 if self.unit_at(next.0, next.1).is_some() {
@@ -557,6 +849,13 @@ impl GameState {
                 }
                 self.units[idx].x = next.0;
                 self.units[idx].y = next.1;
+                self.turn_events.push(TurnEvent::Move {
+                    unit_id: self.units[idx].id,
+                    from_x: cur.0,
+                    from_y: cur.1,
+                    to_x: next.0,
+                    to_y: next.1,
+                });
                 steps -= 1;
             }
 
@@ -569,13 +868,21 @@ impl GameState {
                 {
                     let damage = self.units[idx].atk;
                     self.units[target_idx].hp = (self.units[target_idx].hp - damage).max(0);
+                    let killed = self.units[target_idx].hp <= 0;
+                    self.turn_events.push(TurnEvent::Attack {
+                        attacker_id: self.units[idx].id,
+                        target_id: self.units[target_idx].id,
+                        damage,
+                        killed,
+                        target_hp: self.units[target_idx].hp,
+                    });
                     self.message = format!(
                         "{} が {} に {} ダメージ",
-                        job_label(self.units[idx].job),
-                        job_label(self.units[target_idx].job),
+                        self.units[idx].display_name(),
+                        self.units[target_idx].display_name(),
                         damage
                     );
-                    if self.units[target_idx].hp <= 0 {
+                    if killed {
                         self.message.push_str(" / 撃破");
                     }
                     if self.player_units_alive() == 0 {
@@ -630,6 +937,9 @@ impl GameState {
                 let nx = x + dx;
                 let ny = y + dy;
                 let Some(tile) = self.map.get(nx, ny) else { continue };
+                if tile.terrain == Terrain::Water {
+                    continue;
+                }
                 let occupied = self.unit_at(nx, ny);
                 if let Some(unit) = occupied {
                     if unit.id != mover_id && (nx, ny) != goal {
@@ -716,6 +1026,7 @@ impl GameState {
         if !matches!(self.phase, Phase::Player) {
             return;
         }
+        self.turn_events.clear();
 
         let Some(selected_id) = self.selected_unit_id else {
             return;
@@ -749,12 +1060,15 @@ impl GameState {
                 self.message = "使用できないアビリティです".to_string();
             }
         }
+        if !self.turn_events.is_empty() {
+            self.event_seq = self.event_seq.wrapping_add(1);
+        }
     }
 
     fn use_push(&mut self, unit_index: usize) {
-        let (ux, uy, job_name) = {
+        let (uid, ux, uy, unit_name) = {
             let unit = &self.units[unit_index];
-            (unit.x, unit.y, job_label(unit.job).to_string())
+            (unit.id, unit.x, unit.y, unit.display_name().to_string())
         };
         let target_index = self
             .units
@@ -770,29 +1084,54 @@ impl GameState {
             return;
         };
 
-        let dx = (self.units[target_index].x - ux).signum();
-        let dy = (self.units[target_index].y - uy).signum();
-        let next = (self.units[target_index].x + dx, self.units[target_index].y + dy);
+        let target_id = self.units[target_index].id;
+        let from_x = self.units[target_index].x;
+        let from_y = self.units[target_index].y;
+        let dx = (from_x - ux).signum();
+        let dy = (from_y - uy).signum();
+        let next = (from_x + dx, from_y + dy);
         if self
             .map
             .get(next.0, next.1)
-            .is_some_and(|_| self.unit_at(next.0, next.1).is_none())
+            .is_some_and(|tile| tile.terrain != Terrain::Water && self.unit_at(next.0, next.1).is_none())
         {
             self.units[target_index].x = next.0;
             self.units[target_index].y = next.1;
             self.units[unit_index].acted = true;
-            self.message = format!("{} の押し込み", job_name);
+            self.message = format!("{} の押し込み", unit_name);
+            self.turn_events.push(TurnEvent::Move {
+                unit_id: target_id,
+                from_x,
+                from_y,
+                to_x: next.0,
+                to_y: next.1,
+            });
+            self.turn_events.push(TurnEvent::Ability {
+                unit_id: uid,
+                name: "押し込み",
+                target_id: Some(target_id),
+                damage: 0,
+                healed: 0,
+            });
         } else {
             self.units[target_index].hp = (self.units[target_index].hp - 8).max(0);
             self.units[unit_index].acted = true;
-            self.message = format!("{} の押し込み失敗、代わりに8ダメージ", job_name);
+            self.message = format!("{} の押し込み失敗、代わりに8ダメージ", unit_name);
+            self.turn_events.push(TurnEvent::Attack {
+                attacker_id: uid,
+                target_id,
+                damage: 8,
+                killed: self.units[target_index].hp <= 0,
+                target_hp: self.units[target_index].hp,
+            });
+            self.check_victory_or_defeat();
         }
     }
 
     fn use_curved_shot(&mut self, unit_index: usize) {
-        let (ux, uy, atk, job_name) = {
+        let (uid, ux, uy, atk, unit_name) = {
             let unit = &self.units[unit_index];
-            (unit.x, unit.y, unit.atk + 4, job_label(unit.job).to_string())
+            (unit.id, unit.x, unit.y, unit.atk + 4, unit.display_name().to_string())
         };
         let target_index = self
             .units
@@ -808,16 +1147,24 @@ impl GameState {
             return;
         };
 
+        let target_id = self.units[target_index].id;
         self.units[target_index].hp = (self.units[target_index].hp - atk).max(0);
         self.units[unit_index].acted = true;
-        self.message = format!("{} の曲射で {} ダメージ", job_name, atk);
+        self.message = format!("{} の曲射で {} ダメージ", unit_name, atk);
+        self.turn_events.push(TurnEvent::Attack {
+            attacker_id: uid,
+            target_id,
+            damage: atk,
+            killed: self.units[target_index].hp <= 0,
+            target_hp: self.units[target_index].hp,
+        });
         self.check_victory_or_defeat();
     }
 
     fn use_matchlock_shot(&mut self, unit_index: usize) {
-        let (ux, uy, atk, job_name) = {
+        let (uid, ux, uy, atk, unit_name) = {
             let unit = &self.units[unit_index];
-            (unit.x, unit.y, unit.atk + 8, job_label(unit.job).to_string())
+            (unit.id, unit.x, unit.y, unit.atk + 8, unit.display_name().to_string())
         };
         let target_index = self
             .units
@@ -833,43 +1180,68 @@ impl GameState {
             return;
         };
 
+        let target_id = self.units[target_index].id;
         self.units[target_index].hp = (self.units[target_index].hp - atk).max(0);
         self.units[unit_index].acted = true;
-        self.message = format!("{} の火縄射撃で {} ダメージ", job_name, atk);
+        self.message = format!("{} の火縄射撃で {} ダメージ", unit_name, atk);
+        self.turn_events.push(TurnEvent::Attack {
+            attacker_id: uid,
+            target_id,
+            damage: atk,
+            killed: self.units[target_index].hp <= 0,
+            target_hp: self.units[target_index].hp,
+        });
         self.check_victory_or_defeat();
     }
 
     fn use_smoke_bomb(&mut self, unit_index: usize) {
-        let (ux, uy, job_name) = {
+        let (uid, ux, uy, unit_name) = {
             let unit = &self.units[unit_index];
-            (unit.x, unit.y, job_label(unit.job).to_string())
+            (unit.id, unit.x, unit.y, unit.display_name().to_string())
         };
         let tile_index = self.map.idx(ux, uy);
         if let Some(tile_index) = tile_index {
             if let Some(tile) = self.map.tiles.get_mut(tile_index) {
-            tile.cover = true;
-            self.units[unit_index].moved = true;
-            self.units[unit_index].acted = true;
-            self.message = format!("{} が煙玉を使用", job_name);
+                tile.cover = true;
+                self.units[unit_index].moved = true;
+                self.units[unit_index].acted = true;
+                self.message = format!("{} が煙玉を使用", unit_name);
+                self.turn_events.push(TurnEvent::Ability {
+                    unit_id: uid,
+                    name: "煙玉",
+                    target_id: None,
+                    damage: 0,
+                    healed: 0,
+                });
             }
         }
     }
 
     fn use_formation_change(&mut self, unit_index: usize) {
-        let (ux, uy, job_name) = {
+        let (uid, ux, uy, unit_name) = {
             let unit = &self.units[unit_index];
-            (unit.x, unit.y, job_label(unit.job).to_string())
+            (unit.id, unit.x, unit.y, unit.display_name().to_string())
         };
+        let mut healed_total = 0;
         for unit in self.units.iter_mut() {
             if unit.team == Team::Player && unit.hp > 0 {
                 let dist = (unit.x - ux).abs() + (unit.y - uy).abs();
                 if dist <= 2 {
+                    let before = unit.hp;
                     unit.hp = (unit.hp + 6).min(unit.max_hp);
+                    healed_total += unit.hp - before;
                 }
             }
         }
         self.units[unit_index].acted = true;
-        self.message = format!("{} が陣形を整えた", job_name);
+        self.message = format!("{} が陣形を整えた", unit_name);
+        self.turn_events.push(TurnEvent::Ability {
+            unit_id: uid,
+            name: "陣形変更",
+            target_id: None,
+            damage: 0,
+            healed: healed_total,
+        });
     }
 
     fn check_victory_or_defeat(&mut self) {
@@ -931,6 +1303,38 @@ impl UnitState {
             range,
             moved: false,
             acted: false,
+            leader: false,
+            name: "",
+            role: "",
+            tag: "",
+            basis: "",
+            note: "",
+        }
+    }
+
+    fn with_meta(
+        mut self,
+        leader: bool,
+        name: &'static str,
+        role: &'static str,
+        tag: &'static str,
+        basis: &'static str,
+        note: &'static str,
+    ) -> Self {
+        self.leader = leader;
+        self.name = name;
+        self.role = role;
+        self.tag = tag;
+        self.basis = basis;
+        self.note = note;
+        self
+    }
+
+    fn display_name(&self) -> &'static str {
+        if !self.name.is_empty() {
+            self.name
+        } else {
+            job_label(self.job)
         }
     }
 }
@@ -948,6 +1352,157 @@ struct BattleSummary {
     is_player_turn: bool,
     selected_tile: Option<(i32, i32)>,
     move_origin: Option<(UnitId, i32, i32, bool)>,
+}
+
+fn scenario_name(scenario: ScenarioKind) -> &'static str {
+    match scenario {
+        ScenarioKind::Demo => "demo",
+        ScenarioKind::Hitotoribashi => "hitotoribashi",
+    }
+}
+
+fn build_hitotoribashi_map() -> (Map, HashSet<(i32, i32)>, HashSet<(i32, i32)>) {
+    let fill = Tile {
+        terrain: Terrain::Plain,
+        height: 1,
+        cover: false,
+        water: false,
+    };
+    let mut map = Map::new(10, 10, fill);
+    let mut bridge_tiles = HashSet::new();
+    let mut escape_tiles = HashSet::new();
+
+    for y in 0..10i32 {
+        for x in 0..10i32 {
+            let idx = (y as usize) * 10 + (x as usize);
+            let tile = match (x, y) {
+                // River (阿武隈川 / 瀬戸川): impassable water curving NE -> SW
+                (8, 4) | (9, 4)
+                | (0, 5) | (1, 5) | (2, 5) | (3, 5)
+                | (5, 5) | (6, 5) | (7, 5) | (8, 5)
+                | (0, 6) => Tile {
+                    terrain: Terrain::Water,
+                    height: 0,
+                    cover: false,
+                    water: true,
+                },
+
+                // Hitotoribashi wooden bridge (人取橋)
+                (4, 5) | (4, 6) => {
+                    bridge_tiles.insert((x, y));
+                    Tile {
+                        terrain: Terrain::Road,
+                        height: 1,
+                        cover: false,
+                        water: false,
+                    }
+                }
+
+                // North hilltop castle (小浜城 / 退路方面の砦)
+                (5, 0) => {
+                    escape_tiles.insert((x, y));
+                    Tile {
+                        terrain: Terrain::Castle,
+                        height: 3,
+                        cover: true,
+                        water: false,
+                    }
+                }
+                (6, 0) => Tile {
+                    terrain: Terrain::Castle,
+                    height: 3,
+                    cover: true,
+                    water: false,
+                },
+                (9, 0) => Tile {
+                    terrain: Terrain::Mountain,
+                    height: 3,
+                    cover: true,
+                    water: false,
+                },
+
+                // North escape highway (小浜方面・離脱マス)
+                (3, 0) | (4, 0) => {
+                    escape_tiles.insert((x, y));
+                    Tile {
+                        terrain: Terrain::Road,
+                        height: 2,
+                        cover: false,
+                        water: false,
+                    }
+                }
+
+                // Winding north road & south highway
+                (2, 1) | (3, 1) => Tile {
+                    terrain: Terrain::Road,
+                    height: 2,
+                    cover: false,
+                    water: false,
+                },
+                (2, 2) | (2, 3) | (3, 3) | (3, 4) | (4, 4) | (4, 7) | (4, 8) | (4, 9) => Tile {
+                    terrain: Terrain::Road,
+                    height: 1,
+                    cover: false,
+                    water: false,
+                },
+
+                // Castle town below hilltop fort
+                (5, 1) | (6, 1) => Tile {
+                    terrain: Terrain::Town,
+                    height: 2,
+                    cover: true,
+                    water: false,
+                },
+
+                // Terraced hills (段々畑) on northern slopes & eastern flank
+                (0, 0) | (1, 0) | (2, 0) | (7, 0) | (8, 0)
+                | (0, 1) | (1, 1) | (4, 1) | (7, 1) | (8, 1) | (9, 1)
+                | (3, 2) | (4, 2) | (9, 2)
+                | (8, 7) | (9, 7) | (8, 8) | (9, 8) | (7, 9) | (8, 9) | (9, 9) => Tile {
+                    terrain: Terrain::Terrace,
+                    height: 2,
+                    cover: (x == 7 && y == 0) || (x == 9 && y == 1),
+                    water: false,
+                },
+                (0, 2) | (1, 2) | (5, 2) | (8, 2) | (5, 3) => Tile {
+                    terrain: Terrain::Terrace,
+                    height: 1,
+                    cover: x == 5,
+                    water: false,
+                },
+
+                // Flooded rice fields (田んぼ) bordering the riverbanks
+                (6, 2) | (7, 2)
+                | (0, 3) | (1, 3) | (6, 3) | (7, 3) | (8, 3)
+                | (0, 4) | (1, 4) | (6, 4) | (7, 4)
+                | (1, 6) | (2, 6) | (8, 6) | (9, 6)
+                | (0, 7) | (1, 7)
+                | (0, 8) | (1, 8) | (2, 8) => Tile {
+                    terrain: Terrain::RiceField,
+                    height: 1,
+                    cover: false,
+                    water: true,
+                },
+
+                // Riverbank plains & staging fields
+                (6, 7) => Tile {
+                    terrain: Terrain::Plain,
+                    height: 1,
+                    cover: true,
+                    water: false,
+                },
+                _ => Tile {
+                    terrain: Terrain::Plain,
+                    height: 1,
+                    cover: false,
+                    water: false,
+                },
+            };
+            map.tiles[idx] = tile;
+        }
+    }
+
+    (map, bridge_tiles, escape_tiles)
 }
 
 fn build_demo_map() -> Map {

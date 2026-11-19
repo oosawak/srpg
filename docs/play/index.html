@@ -2,91 +2,343 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>srpg demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>人取橋の合戦 — 戦国SRPG</title>
+    <link rel="stylesheet" href="./engine.css" />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <main class="shell">
-      <section class="hero">
-        <div class="toolbar">
-          <label class="zoomControl" for="zoomRange">
-            <span id="zoomLabel">90%</span>
-            <input id="zoomRange" type="range" min="30" max="200" step="5" value="75" />
-          </label>
+      <header class="hudHeader" aria-label="合戦状況">
+        <div class="hudPrimary">
+          <div class="hudTitleGroup">
+            <span id="scenarioBadge" class="scenarioBadge">人取橋の合戦</span>
+            <span id="turnBadge" class="turnBadge">第 1 / 6 ターン</span>
+            <span id="phaseBadge" class="phaseBadge phase-player">伊達軍</span>
+          </div>
+          <div id="objectiveBanner" class="objectiveBanner">
+            目標: 政宗を北端（小浜方面）へ離脱、または6ターン終了まで生存
+          </div>
         </div>
-      </section>
+        <div class="hudCounters">
+          <div class="forcePill force-player">
+            <span class="forceDot"></span>
+            <span id="playerForceLabel">伊達 4部隊</span>
+          </div>
+          <div class="forcePill force-enemy">
+            <span class="forceDot"></span>
+            <span id="enemyForceLabel">連合 6部隊</span>
+          </div>
+          <div id="oniwaStatusPill" class="forcePill force-oniwa">
+            殿・鬼庭: 橋上防衛中
+          </div>
+        </div>
+        <div class="hudTools">
+          <label class="zoomControl" for="zoomRange" title="拡大縮小">
+            <span id="zoomLabel">100%</span>
+            <input id="zoomRange" type="range" min="30" max="200" step="5" value="100" />
+          </label>
+          <button id="muteToggle" class="iconBtn" type="button" aria-pressed="false" title="音のオン/オフ">🔊 音</button>
+          <button id="helpOpen" class="iconBtn" type="button" title="操作一覧">？操作</button>
+          <button id="titleReturn" class="iconBtn" type="button" title="開始画面へ戻る">幕舎</button>
+        </div>
+      </header>
 
       <section class="board">
-        <div class="canvasWrap">
+        <div class="canvasWrap" id="canvasWrap">
           <div class="gameControls">
-            <button id="toggleView" class="primary" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
-            <button id="endTurn" class="secondary" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
-            <button id="resetView" class="secondary" onclick="window.srpgUi && window.srpgUi.reset()">初期化</button>
+            <button id="toggleView" class="primary" type="button" onclick="window.srpgUi && window.srpgUi.toggleView()">切替: 斜め見下ろし</button>
+            <button id="endTurn" class="accent" type="button" onclick="window.srpgUi && window.srpgUi.endTurn()">ターン終了</button>
+            <button id="resetView" class="secondary" type="button" onclick="window.srpgUi && window.srpgUi.reset()">やり直し</button>
           </div>
-          <div class="unitCard unitCardOverlay">
+
+          <div id="phaseBanner" class="phaseBanner" hidden aria-live="polite">
+            <div id="phaseBannerSub" class="phaseBannerSub">天正13年 11月17日</div>
+            <div id="phaseBannerTitle" class="phaseBannerTitle">第1ターン 伊達軍</div>
+          </div>
+
+          <div class="unitCard unitCardOverlay" id="playerUnitCardOverlay" hidden>
             <h3 class="unitCardHeader">
-              <span>ユニット情報</span>
+              <span>自軍・地形情報</span>
               <button id="unitPanelClose" class="unitPanelClose" type="button" aria-label="情報ウィンドウを閉じる">✕</button>
             </h3>
             <div id="unitInfo" class="unitInfo">ユニットをクリックしてください</div>
             <div id="unitActions" class="unitActions"></div>
           </div>
+
           <div class="unitCard enemyCardOverlay" id="enemyUnitCardOverlay" hidden>
             <h3 class="unitCardHeader">
-              <span>敵ユニット</span>
+              <span>敵軍ユニット</span>
               <button id="enemyUnitPanelClose" class="unitPanelClose" type="button" aria-label="敵ユニット情報を閉じる">✕</button>
             </h3>
             <div id="enemyUnitInfo" class="unitInfo"></div>
             <div id="enemyUnitActions" class="unitActions"></div>
           </div>
+
           <div id="attackFxOverlay" class="attackFxOverlay" hidden></div>
-          <div class="unitCard abilityCardOverlay">
-            <h3>アビリティ</h3>
+
+          <div class="unitCard abilityCardOverlay" id="abilityCardOverlay">
+            <h3 class="unitCardHeader">
+              <span>アビリティ</span>
+            </h3>
             <div id="abilityList" class="abilityList"></div>
           </div>
-          <canvas id="mapCanvas" width="960" height="720" aria-label="map view"></canvas>
+
+          <canvas id="mapCanvas" width="960" height="720" aria-label="合戦マップ"></canvas>
         </div>
 
         <aside class="panel">
-          <div id="bootStatus" class="bootStatus">booting...</div>
-          <div id="inputProbe" class="bootStatus">input: none</div>
-          <h2>状態</h2>
-          <dl class="stats">
-            <div><dt>表示</dt><dd id="viewName">isometric</dd></div>
-            <div><dt>ターン</dt><dd id="turnNumber">1</dd></div>
-            <div><dt>フェーズ</dt><dd id="phaseName">player</dd></div>
-            <div><dt>選択</dt><dd id="selectedUnit">なし</dd></div>
-            <div><dt>部隊数</dt><dd id="unitCount">2</dd></div>
-            <div><dt>地形</dt><dd>山城 / 城下町 / 田んぼ / 段々畑</dd></div>
-          </dl>
+          <section class="panelSection objectiveCard">
+            <h2>勝敗条件</h2>
+            <p id="objectiveDetail" class="objectiveDetail">
+              <strong>勝利:</strong> 政宗が北端の離脱マス（小浜方面）へ到達、または6ターン生存<br />
+              <strong>敗北:</strong> 政宗の討ち死に
+            </p>
+            <div id="oniwaSummaryLine" class="oniwaSummaryLine">
+              殿・鬼庭良直: 橋の南詰めに布陣（防衛 0 ターン）
+            </div>
+          </section>
 
-          <div class="legend">
-            <h3>凡例</h3>
+          <section class="panelSection battleLogSection">
+            <div class="sectionHead">
+              <h2>戦況ログ</h2>
+              <span id="logCount" class="logCount">0件</span>
+            </div>
+            <ul id="battleLog" class="battleLog" aria-live="polite"></ul>
+          </section>
+
+          <section class="panelSection statusDetailsSection">
+            <h2>戦場情報</h2>
+            <dl class="stats">
+              <div><dt>視点</dt><dd id="viewName">斜め見下ろし</dd></div>
+              <div><dt>ターン</dt><dd id="turnNumber">1</dd></div>
+              <div><dt>フェーズ</dt><dd id="phaseName">伊達軍</dd></div>
+              <div><dt>選択中</dt><dd id="selectedUnit">伊達政宗</dd></div>
+              <div><dt>残存数</dt><dd id="unitCount">10</dd></div>
+            </dl>
+            <div id="bootStatus" class="bootStatus" hidden>booting...</div>
+            <div id="inputProbe" class="bootStatus" hidden>input: none</div>
+          </section>
+
+          <section class="panelSection legend">
+            <h3>地形凡例</h3>
             <ul>
-              <li><span class="swatch plain"></span>平地</li>
-              <li><span class="swatch castle"></span>城</li>
+              <li><span class="swatch river"></span>川（進入不可）</li>
+              <li><span class="swatch bridge"></span>人取橋（渡河可）</li>
+              <li><span class="swatch escape"></span>離脱マス（小浜方面）</li>
+              <li><span class="swatch castle"></span>城（高所・遮蔽）</li>
               <li><span class="swatch town"></span>城下町</li>
-              <li><span class="swatch rice"></span>田んぼ</li>
-              <li><span class="swatch terrace"></span>段々畑</li>
-              <li><span class="swatch road"></span>道</li>
+              <li><span class="swatch rice"></span>田んぼ（水地・重）</li>
+              <li><span class="swatch terrace"></span>段々畑（高低差）</li>
+              <li><span class="swatch road"></span>街道（コスト1）</li>
+              <li><span class="swatch plain"></span>平地</li>
             </ul>
-          </div>
+          </section>
 
-          <div class="help">
-            <h3>操作</h3>
-            <ul>
-              <li>自軍ユニットをクリックして選択</li>
-              <li>青いマスをクリックで移動</li>
-              <li>赤い敵をクリックで攻撃</li>
-              <li>ターン終了で敵 AI を進める</li>
-            </ul>
-          </div>
+          <section class="panelSection basisLegend">
+            <h3>種別の印について</h3>
+            <p class="basisDesc">
+              <span class="basisBadge basis-fact">史実</span>
+              <span class="basisBadge basis-legend">伝承</span>
+              <span class="basisBadge basis-fiction">創作</span>
+              は内容の種別の目安です。合戦の骨格と主要武将は史実・伝承に基づき、部隊編成と盤面配置はゲーム用の模式図です。
+            </p>
+            <a
+              class="bookLinkInline"
+              href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch07-aizu-shigezane"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              『伊達の国』第7章「摺上原と人取橋」を読む ↗
+            </a>
+          </section>
         </aside>
       </section>
     </main>
 
+    <!-- 開始画面オーバーレイ -->
+    <div id="startOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+      <div class="startCard">
+        <div class="startArtWrap">
+          <img
+            src="./assets/hitotoribashi-keyart.webp"
+            alt="人取橋の合戦イメージ：川と木橋を守る青い伊達軍の殿と、南岸に迫る赤い南奥州連合軍"
+            class="startArt"
+            width="800"
+            height="533"
+          />
+          <div class="startArtScrim"></div>
+          <div class="startArtCaption">
+            <p class="startEyebrow">天正13年11月17日（1585年） 安達郡・本宮市青田字茂庭</p>
+            <h1 id="startTitle">人取橋の合戦</h1>
+            <p class="startSubtitle">伊達 約7千（伝承値） 対 南奥州諸侯連合 約3万（伝承値）</p>
+          </div>
+        </div>
+
+        <div class="startBody">
+          <div class="startGrid">
+            <div class="startBlock">
+              <h2>合戦の概況</h2>
+              <p>
+                父・伊達輝宗を二本松で失った若き当主・<strong>伊達政宗（19歳）</strong>は、小浜城を足場に二本松へ出陣。
+                しかし佐竹義重率いる南奥州連合の大軍に押され、阿武隈川・人取橋のほとりで最大の危機を迎える。
+                73歳の老将・<strong>鬼庭良直（左月斎）</strong>が橋の南詰めで殿（しんがり）を務め、<strong>伊達成実（18歳）</strong>が踏みとどまる間に、政宗は北の小浜方面へ退路を開く。
+              </p>
+              <div class="startBookRow">
+                <a
+                  class="bookLinkBtn"
+                  href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch07-aizu-shigezane"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  📖 本『伊達の国』第7章（人取橋）を読む ↗
+                </a>
+                <span class="startBasisNote">
+                  <span class="basisBadge basis-fact">史実</span>
+                  <span class="basisBadge basis-legend">伝承</span>
+                  <span class="basisBadge basis-fiction">創作</span>
+                  配置は模式図
+                </span>
+              </div>
+            </div>
+
+            <div class="startBlock">
+              <h2>勝敗条件と操作</h2>
+              <ul class="startRules">
+                <li><strong>勝利:</strong> 政宗が北端の<strong>離脱マス（小浜方面）</strong>へ到達、または<strong>6ターン終了まで生存</strong></li>
+                <li><strong>敗北:</strong> 伊達政宗の討ち死に</li>
+                <li><strong>殿の記録:</strong> 鬼庭良直が橋を守り抜いたターン数を結果に記録</li>
+                <li><strong>基本操作:</strong> 味方をタップ→「移動」で青マスへ移動／赤枠の敵をタップして「攻撃」／「ターン終了」で連合軍の行動</li>
+              </ul>
+              <div class="startAudioRow">
+                <label class="audioToggle">
+                  <input id="startMuteCheck" type="checkbox" />
+                  <span>音をミュートする</span>
+                </label>
+                <label class="volumeControl" for="startVolumeRange">
+                  <span>音量</span>
+                  <input id="startVolumeRange" type="range" min="0" max="100" step="5" value="65" />
+                  <span id="startVolumeLabel">65%</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="startActions">
+            <button id="startHitotoribashi" class="primary startMainBtn" type="button">
+              出陣 — 人取橋の合戦
+            </button>
+            <button id="startDemo" class="secondary" type="button">
+              従来のデモ配置で遊ぶ
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 決着カットイン＆結果サマリーオーバーレイ -->
+    <div id="resultOverlay" class="modalOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div id="resultCutin" class="resultCutin" hidden>
+        <p id="resultCutinSub" class="resultCutinSub">天正13年・人取橋</p>
+        <h2 id="resultCutinTitle" class="resultCutinTitle">政宗、離脱成功！</h2>
+        <button id="resultCutinSkip" class="secondary resultSkipBtn" type="button">結果を見る</button>
+      </div>
+
+      <div id="resultCard" class="resultCard" hidden>
+        <p id="resultEyebrow" class="resultEyebrow">合戦決着</p>
+        <h2 id="resultTitle">伊達軍 撤退成功</h2>
+        <p id="resultLead" class="resultLead"></p>
+
+        <dl class="resultStats">
+          <div>
+            <dt>経過ターン</dt>
+            <dd id="resTurns">-</dd>
+          </div>
+          <div>
+            <dt>殿・鬼庭の防衛</dt>
+            <dd id="resOniwa">-</dd>
+          </div>
+          <div>
+            <dt>伊達軍 残存</dt>
+            <dd id="resPlayerAlive">-</dd>
+          </div>
+          <div>
+            <dt>連合軍 残存</dt>
+            <dd id="resEnemyAlive">-</dd>
+          </div>
+        </dl>
+
+        <div id="resRoster" class="resRoster"></div>
+
+        <div class="resultBookBox">
+          <p>この合戦の背景と、鬼庭良直・伊達成実・摺上原へと続く物語は本の第7章で読めます。</p>
+          <a
+            class="bookLinkBtn"
+            href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch07-aizu-shigezane"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            📖 本『伊達の国』第7章「摺上原と人取橋」へ ↗
+          </a>
+        </div>
+
+        <div class="resultActions">
+          <button id="resultRetry" class="primary" type="button">もう一度出陣</button>
+          <button id="resultToTitle" class="secondary" type="button">開始画面へ戻る</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作ヘルプモーダル -->
+    <div id="helpOverlay" class="modalOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="helpCard">
+        <div class="helpHeader">
+          <h2 id="helpTitle">操作一覧・戦場の見方</h2>
+          <button id="helpClose" class="unitPanelClose" type="button" aria-label="閉じる">✕</button>
+        </div>
+        <div class="helpGrid">
+          <div>
+            <h3>マウス・タップ操作</h3>
+            <ul>
+              <li><strong>味方をタップ/クリック:</strong> 部隊情報と地形効果を表示</li>
+              <li><strong>「移動」ボタン（または味方を長押し）:</strong> 移動範囲（青マス）を表示し、青マスをタップで移動</li>
+              <li><strong>「移動を戻す」:</strong> 攻撃前なら移動をやり直し可能</li>
+              <li><strong>赤い敵をタップ→「攻撃」（または再タップ/長押し）:</strong> 射程内の敵を攻撃</li>
+              <li><strong>アビリティ:</strong> 政宗の「陣形変更」（周囲回復）、成実の「押し込み」、弓隊の「曲射」など</li>
+              <li><strong>「ターン終了」:</strong> 連合軍フェイズへ進める</li>
+            </ul>
+          </div>
+          <div>
+            <h3>キーボード操作（PC）</h3>
+            <ul>
+              <li><strong>M:</strong> 選択中ユニットの移動開始</li>
+              <li><strong>Esc:</strong> 移動キャンセル／モーダルを閉じる</li>
+              <li><strong>E:</strong> ターン終了</li>
+              <li><strong>V:</strong> 斜め見下ろし／真上2D切替</li>
+              <li><strong>H / ?:</strong> この操作一覧を開く</li>
+            </ul>
+            <h3>音量設定</h3>
+            <div class="startAudioRow">
+              <label class="audioToggle">
+                <input id="helpMuteCheck" type="checkbox" />
+                <span>ミュート</span>
+              </label>
+              <label class="volumeControl" for="helpVolumeRange">
+                <span>音量</span>
+                <input id="helpVolumeRange" type="range" min="0" max="100" step="5" value="65" />
+                <span id="helpVolumeLabel">65%</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="helpFooter">
+          <button id="helpCloseBtn" class="primary" type="button">戦場へ戻る</button>
+        </div>
+      </div>
+    </div>
+
     <script src="./wasm_bridge.js"></script>
+    <script src="./sound.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
