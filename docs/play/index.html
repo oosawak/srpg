@@ -15,6 +15,7 @@
             <span id="scenarioBadge" class="scenarioBadge">人取橋の合戦</span>
             <span id="turnBadge" class="turnBadge">第 1 / 6 ターン</span>
             <span id="phaseBadge" class="phaseBadge phase-player">伊達軍</span>
+            <span id="autoStatusBadge" class="autoBadge" hidden aria-live="polite">自動進行中（クリック／キーで手動へ）</span>
           </div>
           <div id="objectiveBanner" class="objectiveBanner">
             目標: 政宗を北端（小浜方面）へ離脱、または6ターン終了まで生存
@@ -38,6 +39,7 @@
             <span id="zoomLabel">100%</span>
             <input id="zoomRange" type="range" min="30" max="200" step="5" value="100" />
           </label>
+          <button id="autoToggle" class="iconBtn autoToggleBtn" type="button" aria-pressed="false" title="自動進行のオン/オフ">自動: OFF</button>
           <button id="muteToggle" class="iconBtn" type="button" aria-pressed="false" title="音のオン/オフ">🔊 音</button>
           <button id="helpOpen" class="iconBtn" type="button" title="操作一覧">？操作</button>
           <button id="titleReturn" class="iconBtn" type="button" title="開始画面へ戻る">幕舎</button>
@@ -228,6 +230,9 @@
             <button id="startHitotoribashi" class="primary startMainBtn" type="button">
               出陣 — 人取橋の合戦
             </button>
+            <button id="startAutoHitotoribashi" class="accent startAutoBtn" type="button">
+              自動で見る
+            </button>
             <button id="startDemo" class="secondary" type="button">
               従来のデモ配置で遊ぶ
             </button>
@@ -283,6 +288,7 @@
         </div>
 
         <div class="resultActions">
+          <button id="resultRetryAuto" class="accent" type="button">もう一度自動で見る</button>
           <button id="resultRetry" class="primary" type="button">もう一度出陣</button>
           <button id="resultToTitle" class="secondary" type="button">開始画面へ戻る</button>
         </div>
@@ -306,6 +312,7 @@
               <li><strong>赤い敵をタップ→「攻撃」（または再タップ/長押し）:</strong> 射程内の敵を攻撃</li>
               <li><strong>アビリティ:</strong> 政宗の「陣形変更」（周囲回復）、成実の「押し込み」、弓隊の「曲射」など</li>
               <li><strong>「ターン終了」:</strong> 連合軍フェイズへ進める</li>
+              <li><strong>「自動: ON/OFF」:</strong> 両軍をAIで自動進行。実行中でもクリック／タップ／キー入力で手動へ復帰</li>
             </ul>
           </div>
           <div>
@@ -339,6 +346,7 @@
 
     <script src="./wasm_bridge.js"></script>
     <script src="./sound.js"></script>
+    <script src="./auto_ai.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

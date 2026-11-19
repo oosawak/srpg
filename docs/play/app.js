@@ -11,10 +11,12 @@ const ctx = canvas.getContext("2d");
 const scenarioBadge = rootQuery("#scenarioBadge");
 const turnBadge = rootQuery("#turnBadge");
 const phaseBadge = rootQuery("#phaseBadge");
+const autoStatusBadge = rootQuery("#autoStatusBadge");
 const objectiveBanner = rootQuery("#objectiveBanner");
 const playerForceLabel = rootQuery("#playerForceLabel");
 const enemyForceLabel = rootQuery("#enemyForceLabel");
 const oniwaStatusPill = rootQuery("#oniwaStatusPill");
+const autoToggleBtn = rootQuery("#autoToggle");
 const muteToggleBtn = rootQuery("#muteToggle");
 const helpOpenBtn = rootQuery("#helpOpen");
 const titleReturnBtn = rootQuery("#titleReturn");
@@ -56,6 +58,7 @@ const phaseBannerTitle = rootQuery("#phaseBannerTitle");
 // Start Screen
 const startOverlay = rootQuery("#startOverlay");
 const startHitotoribashiBtn = rootQuery("#startHitotoribashi");
+const startAutoHitotoribashiBtn = rootQuery("#startAutoHitotoribashi");
 const startDemoBtn = rootQuery("#startDemo");
 const startMuteCheck = rootQuery("#startMuteCheck");
 const startVolumeRange = rootQuery("#startVolumeRange");
@@ -76,6 +79,7 @@ const resOniwa = rootQuery("#resOniwa");
 const resPlayerAlive = rootQuery("#resPlayerAlive");
 const resEnemyAlive = rootQuery("#resEnemyAlive");
 const resRoster = rootQuery("#resRoster");
+const resultRetryAutoBtn = rootQuery("#resultRetryAuto");
 const resultRetryBtn = rootQuery("#resultRetry");
 const resultToTitleBtn = rootQuery("#resultToTitle");
 
@@ -186,6 +190,16 @@ const playback = {
   visualUnits: null, // Map<id, unitCopy>
   targetSnapshot: null,
   onComplete: null,
+};
+
+const autoState = {
+  enabled: false,
+  running: false,
+  cancelPending: false,
+  lastEndedInAuto: false,
+  queue: [],
+  timerId: 0,
+  generation: 0,
 };
 
 const state = createScenarioState("hitotoribashi");
@@ -583,6 +597,10 @@ function triggerResolution(outcome, current) {
   battleTracker.resolved = true;
   battleTracker.outcome = outcome;
 
+  const endedInAuto = autoState.enabled || autoState.cancelPending;
+  autoState.lastEndedInAuto = endedInAuto;
+  stopAutoMode();
+
   addBattleLog(
     outcome.victory ? `【決着】${outcome.title}` : `【決着】${outcome.title}`,
     "highlight",
@@ -592,6 +610,16 @@ function triggerResolution(outcome, current) {
 
   if (!resultOverlay) return;
   resultOverlay.hidden = false;
+
+  if (resultRetryAutoBtn && resultRetryBtn) {
+    if (endedInAuto) {
+      resultRetryAutoBtn.className = "primary";
+      resultRetryBtn.className = "secondary";
+    } else {
+      resultRetryAutoBtn.className = "accent";
+      resultRetryBtn.className = "primary";
+    }
+  }
 
   // Populate summary card
   const elapsedTurns =
@@ -834,7 +862,7 @@ function beginCurrentPlaybackStep() {
   playback.stepStartedAt = performance.now();
 
   if (ev.type === "move") {
-    playback.stepDuration = playback.mode === "enemy" ? 135 : 170;
+    playback.stepDuration = playback.mode === "enemy" || autoState.enabled ? 135 : 170;
     soundPlay("move");
   } else if (ev.type === "attack") {
     playback.stepDuration = 320;
@@ -1429,13 +1457,14 @@ function checkAndHandleOutcome() {
   return false;
 }
 
-function executePlayerAttack(target) {
+function executePlayerAttack(target, onComplete = null) {
   if (battleTracker.resolved) return false;
   finishPlaybackImmediately(true);
   const before = snapshotState(getCurrentState());
   const attacker = selectedPlayerUnit(before);
   if (!attacker || !target || !canPlayerAttackTarget(before, target)) {
     soundPlay("ui");
+    if (typeof onComplete === "function") onComplete();
     return false;
   }
 
@@ -1451,14 +1480,17 @@ function executePlayerAttack(target) {
     updateAttackFxOverlay();
   }, 300);
 
+  const handleDone = () => {
+    checkAndHandleOutcome();
+    safeRender();
+    if (typeof onComplete === "function") onComplete();
+  };
+
   if (bridge.useWasm && bridge.instance) {
     bridge.instance.click_tile(target.x, target.y);
     bridge.instance.attack_selected();
     const after = snapshotState(getCurrentState());
-    startEventPlayback(before, after, after.turnEvents, "player", () => {
-      checkAndHandleOutcome();
-      safeRender();
-    });
+    startEventPlayback(before, after, after.turnEvents, "player", handleDone);
     safeRender();
     return true;
   }
@@ -1466,7 +1498,10 @@ function executePlayerAttack(target) {
   // Local fallback
   const localAttacker = state.units.find((u) => u.id === attacker.id);
   const localTarget = state.units.find((u) => u.id === target.id);
-  if (!localAttacker || !localTarget) return false;
+  if (!localAttacker || !localTarget) {
+    if (typeof onComplete === "function") onComplete();
+    return false;
+  }
   localTarget.hp = Math.max(0, localTarget.hp - localAttacker.atk);
   localAttacker.acted = true;
   state.selectedTile = { x: localTarget.x, y: localTarget.y };
@@ -1486,35 +1521,37 @@ function executePlayerAttack(target) {
   ];
   state.eventSeq += 1;
   const after = snapshotState(state);
-  startEventPlayback(before, after, state.turnEvents, "player", () => {
-    checkAndHandleOutcome();
-    safeRender();
-  });
+  startEventPlayback(before, after, state.turnEvents, "player", handleDone);
   safeRender();
   return true;
 }
 
-function executeAbility(abilityId) {
+function executeAbility(abilityId, onComplete = null) {
   if (battleTracker.resolved) return;
   finishPlaybackImmediately(true);
   const before = snapshotState(getCurrentState());
   const actor = selectedPlayerUnit(before);
   if (!actor || actor.acted || before.phase !== "player") {
     soundPlay("ui");
+    if (typeof onComplete === "function") onComplete();
     return;
   }
+
+  const handleDone = () => {
+    checkAndHandleOutcome();
+    safeRender();
+    if (typeof onComplete === "function") onComplete();
+  };
 
   if (bridge.useWasm && bridge.instance && typeof bridge.instance.use_ability === "function") {
     bridge.instance.use_ability(abilityId | 0);
     const after = snapshotState(getCurrentState());
     if (after.turnEvents && after.turnEvents.length > 0) {
-      startEventPlayback(before, after, after.turnEvents, "player", () => {
-        checkAndHandleOutcome();
-        safeRender();
-      });
+      startEventPlayback(before, after, after.turnEvents, "player", handleDone);
     } else {
       addBattleLog(after.message, "system", after.turnNumber);
       soundPlay("ui");
+      if (typeof onComplete === "function") onComplete();
     }
     safeRender();
     return;
@@ -1522,7 +1559,10 @@ function executeAbility(abilityId) {
 
   // Local fallback for Strategist/Ashigaru/Yumi/Teppo/Ninja
   const localActor = state.units.find((u) => u.id === actor.id);
-  if (!localActor) return;
+  if (!localActor) {
+    if (typeof onComplete === "function") onComplete();
+    return;
+  }
   state.turnEvents = [];
   if (localActor.job === "Strategist") {
     let healed = 0;
@@ -1571,12 +1611,10 @@ function executeAbility(abilityId) {
   }
   const after = snapshotState(state);
   if (state.turnEvents.length > 0) {
-    startEventPlayback(before, after, state.turnEvents, "player", () => {
-      checkAndHandleOutcome();
-      safeRender();
-    });
+    startEventPlayback(before, after, state.turnEvents, "player", handleDone);
   } else {
     soundPlay("ui");
+    if (typeof onComplete === "function") onComplete();
   }
   safeRender();
 }
@@ -1728,7 +1766,14 @@ function runTurnEnd() {
         : "自軍フェイズ";
     showPhaseBanner(label, sub, false, 1100);
     soundPlay("turnStart", true);
-    addBattleLog(`敵フェイズ終了。第${after.turnNumber}ターン 伊達軍の行動。`, "system", after.turnNumber);
+    addBattleLog(`敵フェイズ終了。第${after.turnNumber}ターン ${after.scenario === "hitotoribashi" ? "伊達軍" : "自軍"}の行動。`, "system", after.turnNumber);
+    if (autoState.cancelPending) {
+      autoState.cancelPending = false;
+      addBattleLog("手動操作へ切り替わりました。", "system", after.turnNumber);
+      lastHudSignature = "";
+    } else if (autoState.enabled && uiState.started && !battleTracker.resolved) {
+      startAutoPlayerTurn(620);
+    }
     safeRender();
   };
 
@@ -1740,7 +1785,298 @@ function runTurnEnd() {
   safeRender();
 }
 
-function startScenario(scenario = "hitotoribashi") {
+// =========================================================
+// Auto Mode Controller (Role-based Player AI + Step Playback)
+// =========================================================
+function clearAutoTimer() {
+  if (autoState.timerId) {
+    window.clearTimeout(autoState.timerId);
+    autoState.timerId = 0;
+  }
+}
+
+function stopAutoMode() {
+  clearAutoTimer();
+  autoState.enabled = false;
+  autoState.running = false;
+  autoState.cancelPending = false;
+  autoState.queue = [];
+  autoState.generation += 1;
+  lastHudSignature = "";
+}
+
+function scheduleAutoWork(fn, delayMs) {
+  clearAutoTimer();
+  const gen = autoState.generation;
+  autoState.timerId = window.setTimeout(() => {
+    autoState.timerId = 0;
+    if (gen !== autoState.generation) return;
+    fn(gen);
+  }, delayMs);
+}
+
+function requestManualReturn(reason = "入力") {
+  if (!autoState.enabled) return false;
+  clearAutoTimer();
+  autoState.enabled = false;
+  autoState.running = false;
+  autoState.queue = [];
+  autoState.generation += 1;
+
+  const current = getCurrentState();
+  const inEnemyPhase =
+    (playback.active && playback.mode === "enemy") || current.phase === "enemy";
+
+  if (inEnemyPhase) {
+    autoState.cancelPending = true;
+    addBattleLog(`自動進行を解除予約しました（${reason}／次の自軍フェイズから手動操作）。`, "system");
+  } else {
+    autoState.cancelPending = false;
+    if (current.interactionMode === "move") {
+      if (bridge.useWasm && bridge.instance && typeof bridge.instance.cancel_move === "function") {
+        bridge.instance.cancel_move();
+      } else {
+        state.interactionMode = null;
+        state.moveOrigin = null;
+      }
+    }
+    addBattleLog(`自動進行を解除しました（${reason}／手動操作へ切替）。`, "system");
+  }
+  lastHudSignature = "";
+  safeRender();
+  return true;
+}
+
+function enableAutoMode(options = {}) {
+  if (!uiState.started || battleTracker.resolved || !window.srpgAutoAi) return false;
+  clearAutoTimer();
+  autoState.enabled = true;
+  autoState.cancelPending = false;
+  autoState.running = false;
+  autoState.queue = [];
+  autoState.generation += 1;
+
+  const current = getCurrentState();
+  if (current.interactionMode === "move") {
+    if (bridge.useWasm && bridge.instance && typeof bridge.instance.cancel_move === "function") {
+      bridge.instance.cancel_move();
+    } else {
+      state.interactionMode = null;
+      state.moveOrigin = null;
+    }
+  }
+
+  if (!options.silent) {
+    addBattleLog("自動進行を ON にしました（クリック／タップ／キー入力で手動へ戻れます）。", "system");
+  }
+  lastHudSignature = "";
+  safeRender();
+
+  if (!playback.active && getCurrentState().phase === "player") {
+    startAutoPlayerTurn(options.delayMs ?? 320);
+  }
+  return true;
+}
+
+function toggleAutoMode() {
+  if (!uiState.started || battleTracker.resolved || !window.srpgAutoAi) return;
+  soundPlay("ui");
+  if (autoState.enabled) {
+    requestManualReturn("HUDトグル");
+  } else {
+    enableAutoMode({ delayMs: 260 });
+  }
+}
+
+function selectPlayerUnitForAuto(unit) {
+  if (!unit) return;
+  if (bridge.useWasm && bridge.instance) {
+    bridge.instance.click_tile(unit.x, unit.y);
+  } else {
+    state.selectedUnitId = unit.id;
+    state.selectedTile = { x: unit.x, y: unit.y };
+    state.interactionMode = null;
+  }
+}
+
+function executeAutoUnitMove(unit, dest, onDone) {
+  const before = snapshotState(getCurrentState());
+  if (bridge.useWasm && bridge.instance) {
+    bridge.instance.begin_move();
+    bridge.instance.click_tile(dest.x, dest.y);
+    const after = snapshotState(getCurrentState());
+    const expanded = window.srpgAutoAi
+      ? window.srpgAutoAi.expandMoveEventsToSteps(after.turnEvents, before)
+      : after.turnEvents;
+    if (expanded && expanded.length > 0) {
+      startEventPlayback(before, after, expanded, "player", () => {
+        checkAndHandleOutcome();
+        safeRender();
+        if (typeof onDone === "function") onDone();
+      });
+    } else {
+      checkAndHandleOutcome();
+      safeRender();
+      if (typeof onDone === "function") onDone();
+    }
+    safeRender();
+    return;
+  }
+
+  // Local JS fallback
+  const localUnit = state.units.find((u) => u.id === unit.id && u.hp > 0);
+  if (!localUnit || localUnit.moved) {
+    if (typeof onDone === "function") onDone();
+    return;
+  }
+  const fx = localUnit.x;
+  const fy = localUnit.y;
+  localUnit.x = dest.x;
+  localUnit.y = dest.y;
+  localUnit.moved = true;
+  state.selectedUnitId = localUnit.id;
+  state.selectedTile = { x: dest.x, y: dest.y };
+  state.interactionMode = null;
+  state.moveOrigin = null;
+  state.message = `${unitDisplayName(localUnit)} が ${dest.x},${dest.y} へ移動`;
+  state.turnEvents = [{ type: "move", unit_id: localUnit.id, from_x: fx, from_y: fy, to_x: dest.x, to_y: dest.y }];
+  state.eventSeq += 1;
+  const after = snapshotState(state);
+  const expanded = window.srpgAutoAi
+    ? window.srpgAutoAi.expandMoveEventsToSteps(after.turnEvents, before)
+    : after.turnEvents;
+  startEventPlayback(before, after, expanded, "player", () => {
+    checkAndHandleOutcome();
+    safeRender();
+    if (typeof onDone === "function") onDone();
+  });
+  safeRender();
+}
+
+function startAutoPlayerTurn(delayMs = 520) {
+  if (!autoState.enabled || !uiState.started || battleTracker.resolved || !window.srpgAutoAi) {
+    autoState.running = false;
+    return;
+  }
+  const current = getCurrentState();
+  if (current.phase !== "player") {
+    autoState.running = false;
+    return;
+  }
+  autoState.queue = currentPlayerUnits(current.units)
+    .filter((u) => !u.moved || !u.acted)
+    .map((u) => u.id);
+  autoState.running = true;
+  scheduleAutoWork(runNextAutoUnit, delayMs);
+}
+
+function runNextAutoUnit(gen) {
+  if (gen !== autoState.generation || !autoState.enabled || !uiState.started || battleTracker.resolved) {
+    autoState.running = false;
+    return;
+  }
+  if (playback.active) {
+    scheduleAutoWork(runNextAutoUnit, 120);
+    return;
+  }
+
+  let current = getCurrentState();
+  if (current.phase !== "player") {
+    autoState.running = false;
+    return;
+  }
+
+  let unit = null;
+  while (autoState.queue.length > 0 && !unit) {
+    const nextId = autoState.queue.shift();
+    const candidate = current.units.find(
+      (u) => u.id === nextId && u.team === "player" && u.hp > 0 && (!u.moved || !u.acted)
+    );
+    if (candidate) unit = candidate;
+  }
+
+  if (!unit) {
+    autoState.running = false;
+    scheduleAutoWork((endGen) => {
+      if (endGen !== autoState.generation || !autoState.enabled || !uiState.started || battleTracker.resolved) {
+        return;
+      }
+      if (getCurrentState().phase === "player") {
+        runTurnEnd();
+      }
+    }, 360);
+    return;
+  }
+
+  // Select this unit through the bridge so WASM abilities & HUD stay in sync
+  selectPlayerUnitForAuto(unit);
+  current = getCurrentState();
+  const freshUnit = current.units.find((u) => u.id === unit.id && u.hp > 0);
+  if (!freshUnit) {
+    scheduleAutoWork(runNextAutoUnit, 80);
+    return;
+  }
+  safeRender();
+
+  const plan = window.srpgAutoAi.planUnitTurn(freshUnit, current);
+
+  const performActionStep = () => {
+    if (gen !== autoState.generation || !autoState.enabled || !uiState.started || battleTracker.resolved) {
+      autoState.running = false;
+      return;
+    }
+    if (!plan.action) {
+      scheduleAutoWork(runNextAutoUnit, 220);
+      return;
+    }
+    const curAfterMove = getCurrentState();
+    const actor = curAfterMove.units.find((u) => u.id === freshUnit.id && u.hp > 0);
+    if (!actor || actor.acted || curAfterMove.phase !== "player") {
+      scheduleAutoWork(runNextAutoUnit, 180);
+      return;
+    }
+    selectPlayerUnitForAuto(actor);
+
+    const onActionDone = () => {
+      if (gen !== autoState.generation || !autoState.enabled || !uiState.started || battleTracker.resolved) {
+        autoState.running = false;
+        return;
+      }
+      scheduleAutoWork(runNextAutoUnit, 260);
+    };
+
+    if (plan.action.type === "ability") {
+      executeAbility(plan.action.abilityId, onActionDone);
+      return;
+    }
+    if (plan.action.type === "attack" && plan.action.target) {
+      const latest = getCurrentState();
+      const target = latest.units.find(
+        (u) => u.id === plan.action.target.id && u.team === "enemy" && u.hp > 0
+      );
+      if (target && canPlayerAttackTarget(latest, target)) {
+        executePlayerAttack(target, onActionDone);
+        return;
+      }
+    }
+    scheduleAutoWork(runNextAutoUnit, 180);
+  };
+
+  if (plan.moveTo && !freshUnit.moved) {
+    executeAutoUnitMove(freshUnit, plan.moveTo, () => {
+      if (gen !== autoState.generation || !autoState.enabled || !uiState.started || battleTracker.resolved) {
+        autoState.running = false;
+        return;
+      }
+      scheduleAutoWork(() => performActionStep(), 160);
+    });
+  } else {
+    performActionStep();
+  }
+}
+
+function startScenario(scenario = "hitotoribashi", options = {}) {
+  stopAutoMode();
   finishPlaybackImmediately(false);
   clearAttackFx();
   uiState.scenario = scenario;
@@ -1771,12 +2107,25 @@ function startScenario(scenario = "hitotoribashi") {
   }
 
   const title = scenario === "hitotoribashi" ? "第1ターン — 伊達軍" : "第1ターン — 自軍";
-  const sub = scenario === "hitotoribashi" ? "天正13年11月17日 人取橋の合戦" : "従来デモ配置";
+  const sub = options.auto
+    ? scenario === "hitotoribashi"
+      ? "自動観戦 — 天正13年11月17日 人取橋の合戦"
+      : "自動観戦 — 従来デモ配置"
+    : scenario === "hitotoribashi"
+      ? "天正13年11月17日 人取橋の合戦"
+      : "従来デモ配置";
   showPhaseBanner(title, sub, false, 1300);
+
+  if (options.auto) {
+    addBattleLog("自動進行モードで開戦しました（クリック／タップ／キー入力で手動へ戻れます）。", "highlight", 1);
+    enableAutoMode({ silent: true, delayMs: 700 });
+  }
   safeRender();
 }
 
-function resetCurrentScenario() {
+function resetCurrentScenario(options = {}) {
+  const keepAuto = typeof options?.auto === "boolean" ? options.auto : autoState.enabled;
+  stopAutoMode();
   finishPlaybackImmediately(false);
   clearAttackFx();
   soundPlay("ui");
@@ -1789,11 +2138,16 @@ function resetCurrentScenario() {
   uiState.enemyPanelHidden = true;
   resetBattleTracker(uiState.scenario);
   const title = uiState.scenario === "hitotoribashi" ? "第1ターン — 伊達軍" : "第1ターン — 自軍";
-  showPhaseBanner(title, "再出陣", false, 1050);
+  showPhaseBanner(title, keepAuto ? "自動観戦 — 再出陣" : "再出陣", false, 1050);
+  if (keepAuto) {
+    addBattleLog("自動進行モードで再出陣しました（クリック／タップ／キー入力で手動へ戻れます）。", "highlight", 1);
+    enableAutoMode({ silent: true, delayMs: 650 });
+  }
   safeRender();
 }
 
 function returnToStartScreen() {
+  stopAutoMode();
   finishPlaybackImmediately(false);
   hideResultOverlay();
   if (helpOverlay) helpOverlay.hidden = true;
@@ -2000,6 +2354,12 @@ function beginLongPressGesture(event) {
 
 canvas.addEventListener("pointerdown", (event) => {
   if (event.button !== 0) return;
+  if (autoState.enabled && uiState.started && !battleTracker.resolved) {
+    event.preventDefault();
+    soundPlay("ui");
+    requestManualReturn(event.pointerType === "touch" ? "タップ" : "クリック");
+    return;
+  }
   event.preventDefault();
   beginLongPressGesture(event);
 });
@@ -3037,6 +3397,9 @@ function drawHud(current) {
     epH: uiState.enemyPanelHidden,
     res: battleTracker.resolved,
     od: battleTracker.oniwaDefendedTurns,
+    auto: autoState.enabled,
+    autoP: autoState.cancelPending,
+    started: uiState.started,
     units: current.units.map((u) => `${u.id}:${u.hp}:${u.x},${u.y}:${u.moved}:${u.acted}`),
   });
   if (sig === lastHudSignature) return;
@@ -3060,6 +3423,30 @@ function drawHud(current) {
       phaseBadge.classList.add("phase-player");
       phaseBadge.textContent = isHito ? "伊達軍" : "自軍";
     }
+  }
+  if (autoStatusBadge) {
+    if (autoState.enabled && uiState.started && !battleTracker.resolved) {
+      autoStatusBadge.hidden = false;
+      autoStatusBadge.className = "autoBadge";
+      autoStatusBadge.textContent = "自動進行中（クリック／キーで手動へ）";
+    } else if (autoState.cancelPending && uiState.started && !battleTracker.resolved) {
+      autoStatusBadge.hidden = false;
+      autoStatusBadge.className = "autoBadge pending";
+      autoStatusBadge.textContent = "手動へ切替中（次の自軍フェイズから手動）";
+    } else {
+      autoStatusBadge.hidden = true;
+    }
+  }
+  if (autoToggleBtn) {
+    autoToggleBtn.disabled = !uiState.started || battleTracker.resolved || !window.srpgAutoAi;
+    autoToggleBtn.setAttribute("aria-pressed", autoState.enabled ? "true" : "false");
+    autoToggleBtn.classList.toggle("is-on", autoState.enabled);
+    autoToggleBtn.classList.toggle("is-pending", !autoState.enabled && autoState.cancelPending);
+    autoToggleBtn.textContent = autoState.enabled
+      ? "自動: ON"
+      : autoState.cancelPending
+        ? "自動: 解除中"
+        : "自動: OFF";
   }
 
   if (objectiveBanner) {
@@ -3117,7 +3504,7 @@ function drawHud(current) {
     toggleViewButton.textContent = current.viewMode === "isometric" ? "切替: 斜め見下ろし" : "切替: 真上 2D";
   }
   if (endTurnButton) {
-    endTurnButton.disabled = battleTracker.resolved || current.phase !== "player";
+    endTurnButton.disabled = battleTracker.resolved || autoState.enabled || current.phase !== "player";
   }
   statusLine.textContent = current.message;
 
@@ -3186,7 +3573,7 @@ function renderUnitPanel(current) {
       moveBtn.type = "button";
       moveBtn.className = isMoveMode(current) ? "primary" : "secondary";
       moveBtn.textContent = isMoveMode(current) ? "移動先を選択中" : "移動";
-      moveBtn.disabled = battleTracker.resolved || playerUnit.moved || current.phase !== "player";
+      moveBtn.disabled = battleTracker.resolved || autoState.enabled || playerUnit.moved || current.phase !== "player";
       moveBtn.addEventListener("click", beginMoveSelection);
       unitActions.appendChild(moveBtn);
 
@@ -3195,7 +3582,7 @@ function renderUnitPanel(current) {
       cancelBtn.className = "secondary";
       const canUndo = Boolean(current.moveOrigin);
       cancelBtn.textContent = canUndo ? "移動を戻す" : "キャンセル";
-      cancelBtn.disabled = battleTracker.resolved || !(isMoveMode(current) || canUndo);
+      cancelBtn.disabled = battleTracker.resolved || autoState.enabled || !(isMoveMode(current) || canUndo);
       cancelBtn.addEventListener("click", cancelMoveSelection);
       unitActions.appendChild(cancelBtn);
     }
@@ -3225,7 +3612,7 @@ function renderUnitPanel(current) {
     atkBtn.type = "button";
     atkBtn.className = attackable ? "danger" : "secondary";
     atkBtn.textContent = attackable ? "攻撃する" : "射程外";
-    atkBtn.disabled = battleTracker.resolved || !attackable;
+    atkBtn.disabled = battleTracker.resolved || autoState.enabled || !attackable;
     atkBtn.addEventListener("click", () => executePlayerAttack(enemyUnit));
     enemyUnitActions.appendChild(atkBtn);
   }
@@ -3250,7 +3637,7 @@ function renderAbilityList(current) {
     const btn = document.createElement("button");
     btn.className = "abilityButton";
     btn.type = "button";
-    btn.disabled = battleTracker.resolved || unit.acted || current.phase !== "player";
+    btn.disabled = battleTracker.resolved || autoState.enabled || unit.acted || current.phase !== "player";
     btn.innerHTML = `<strong>${escapeHtml(ability.name)}</strong><small>射程 ${ability.range} / 消費 ${ability.cost}</small>`;
     btn.addEventListener("click", () => executeAbility(ability.id));
     abilityList.appendChild(btn);
@@ -3321,10 +3708,16 @@ function toggleViewMode() {
 
 // Wire buttons
 if (startHitotoribashiBtn) {
-  startHitotoribashiBtn.addEventListener("click", () => startScenario("hitotoribashi"));
+  startHitotoribashiBtn.addEventListener("click", () => startScenario("hitotoribashi", { auto: false }));
+}
+if (startAutoHitotoribashiBtn) {
+  startAutoHitotoribashiBtn.addEventListener("click", () => startScenario("hitotoribashi", { auto: true }));
 }
 if (startDemoBtn) {
-  startDemoBtn.addEventListener("click", () => startScenario("demo"));
+  startDemoBtn.addEventListener("click", () => startScenario("demo", { auto: false }));
+}
+if (autoToggleBtn) {
+  autoToggleBtn.addEventListener("click", toggleAutoMode);
 }
 if (resultCutinSkip) {
   resultCutinSkip.addEventListener("click", showResultSummaryCard);
@@ -3332,10 +3725,16 @@ if (resultCutinSkip) {
 if (resultCutin) {
   resultCutin.addEventListener("click", showResultSummaryCard);
 }
+if (resultRetryAutoBtn) {
+  resultRetryAutoBtn.addEventListener("click", () => {
+    hideResultOverlay();
+    resetCurrentScenario({ auto: true });
+  });
+}
 if (resultRetryBtn) {
   resultRetryBtn.addEventListener("click", () => {
     hideResultOverlay();
-    resetCurrentScenario();
+    resetCurrentScenario({ auto: false });
   });
 }
 if (resultToTitleBtn) {
@@ -3435,10 +3834,23 @@ window.addEventListener("keydown", (event) => {
       showResultSummaryCard();
       return;
     }
+    if (autoState.enabled && uiState.started && !battleTracker.resolved) {
+      soundPlay("ui");
+      requestManualReturn("キー入力");
+      return;
+    }
     if (getCurrentState().interactionMode === "move" || getCurrentState().moveOrigin) {
       cancelMoveSelection();
     }
   } else if (!uiState.started || battleTracker.resolved) {
+    return;
+  } else if (
+    autoState.enabled &&
+    (!helpOverlay || helpOverlay.hidden) &&
+    !["Shift", "Control", "Alt", "Meta", "CapsLock", "Tab"].includes(event.key)
+  ) {
+    soundPlay("ui");
+    requestManualReturn("キー入力");
     return;
   } else if (event.key === "m" || event.key === "M") {
     beginMoveSelection();
@@ -3475,6 +3887,9 @@ window.addEventListener("unhandledrejection", (event) => {
 
 window.srpgUi = {
   toggleView: toggleViewMode,
+  toggleAuto: toggleAutoMode,
+  startAuto: (scenario = "hitotoribashi") => startScenario(scenario, { auto: true }),
+  stopAuto: () => requestManualReturn("API"),
   zoomIn: () => setZoom(uiState.zoom + ZOOM_STEP, true),
   zoomOut: () => setZoom(uiState.zoom - ZOOM_STEP, true),
   zoomReset: () => setZoom(defaultZoom(), false),
