@@ -1,0 +1,20 @@
+{
+  "generated_from": "docs/battles/scenarios/*.md",
+  "count": 6,
+  "files": [
+    "hitotoribashi.md",
+    "osaki.md",
+    "suriagehara.md",
+    "kasai-osaki.md",
+    "shiroishi.md",
+    "osaka.md"
+  ],
+  "slugs": [
+    "hitotoribashi",
+    "osaki",
+    "suriagehara",
+    "kasai-osaki",
+    "shiroishi",
+    "osaka"
+  ]
+}

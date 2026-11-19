@@ -3,12 +3,15 @@ use srpg_core::{Job, Map, Terrain, Tile, ViewMode};
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
+mod scenario_json;
+
 type UnitId = u32;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ScenarioKind {
     Demo,
     Hitotoribashi,
+    Custom,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -46,11 +49,11 @@ struct UnitState {
     moved: bool,
     acted: bool,
     leader: bool,
-    name: &'static str,
-    role: &'static str,
-    tag: &'static str,
-    basis: &'static str,
-    note: &'static str,
+    name: String,
+    role: String,
+    tag: String,
+    basis: String,
+    note: String,
 }
 
 #[derive(Clone)]
@@ -88,6 +91,10 @@ struct AbilityView {
 
 struct GameState {
     scenario: ScenarioKind,
+    scenario_slug: String,
+    custom_scenario_json: Option<String>,
+    bridge_label: String,
+    escape_label: String,
     view_mode: ViewMode,
     turn_number: u32,
     phase: Phase,
@@ -106,6 +113,11 @@ struct GameState {
 }
 
 static GAME: OnceLock<Mutex<GameState>> = OnceLock::new();
+static INPUT_BUF: OnceLock<Mutex<Vec<u8>>> = OnceLock::new();
+
+fn input_buf_cell() -> &'static Mutex<Vec<u8>> {
+    INPUT_BUF.get_or_init(|| Mutex::new(Vec::new()))
+}
 
 #[no_mangle]
 pub extern "C" fn srpg_init() {
@@ -113,10 +125,56 @@ pub extern "C" fn srpg_init() {
 }
 
 #[no_mangle]
+pub extern "C" fn srpg_input_ptr(len: usize) -> *mut u8 {
+    let mut buf = input_buf_cell()
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
+    buf.resize(len, 0);
+    buf.as_mut_ptr()
+}
+
+#[no_mangle]
+pub extern "C" fn srpg_load_scenario_json(len: usize) -> i32 {
+    let raw = {
+        let buf = input_buf_cell()
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if len > buf.len() {
+            return -1;
+        }
+        match core::str::from_utf8(&buf[..len]) {
+            Ok(s) => s.to_string(),
+            Err(_) => return -2,
+        }
+    };
+    let parsed = match scenario_json::parse_scenario_json(&raw) {
+        Ok(p) => p,
+        Err(_) => return -3,
+    };
+    with_game_mut(|game| {
+        let view_mode = game.view_mode;
+        *game = GameState::from_parsed_scenario(parsed, raw);
+        game.view_mode = view_mode;
+        game.refresh_render();
+    });
+    1
+}
+
+#[no_mangle]
 pub extern "C" fn srpg_reset() {
     with_game_mut(|game| {
         let scenario = game.scenario;
         let view_mode = game.view_mode;
+        if scenario == ScenarioKind::Custom {
+            if let Some(raw) = game.custom_scenario_json.clone() {
+                if let Ok(parsed) = scenario_json::parse_scenario_json(&raw) {
+                    *game = GameState::from_parsed_scenario(parsed, raw);
+                    game.view_mode = view_mode;
+                    game.refresh_render();
+                    return;
+                }
+            }
+        }
         *game = GameState::new_for_scenario(scenario);
         game.view_mode = view_mode;
         game.refresh_render();
@@ -362,10 +420,30 @@ impl GameState {
                     (4, 4),
                 )
             }
+            ScenarioKind::Custom => {
+                return Self::new_for_scenario(ScenarioKind::Hitotoribashi);
+            }
+        };
+
+        let (scenario_slug, bridge_label, escape_label) = match scenario {
+            ScenarioKind::Hitotoribashi => (
+                "hitotoribashi".to_string(),
+                "人取橋".to_string(),
+                "離脱マス（小浜方面）".to_string(),
+            ),
+            ScenarioKind::Demo | ScenarioKind::Custom => (
+                "demo".to_string(),
+                "橋".to_string(),
+                "離脱マス".to_string(),
+            ),
         };
 
         let mut game = Self {
             scenario,
+            scenario_slug,
+            custom_scenario_json: None,
+            bridge_label,
+            escape_label,
             view_mode: ViewMode::Isometric,
             turn_number: 1,
             phase: Phase::Player,
@@ -386,6 +464,50 @@ impl GameState {
         game
     }
 
+    fn from_parsed_scenario(parsed: scenario_json::ParsedScenario, raw_json: String) -> Self {
+        let units: Vec<UnitState> = parsed
+            .units
+            .into_iter()
+            .map(|u| {
+                let team = if u.is_enemy { Team::Enemy } else { Team::Player };
+                UnitState::new(u.id, u.clan, u.job, team, u.x, u.y, u.hp, u.atk, u.mov, u.range)
+                    .with_meta(u.leader, &u.name, &u.role, &u.tag, &u.basis, &u.note)
+            })
+            .collect();
+
+        let initial_player = units
+            .iter()
+            .find(|u| u.team == Team::Player && u.leader && u.hp > 0)
+            .or_else(|| units.iter().find(|u| u.team == Team::Player && u.hp > 0));
+        let selected_unit_id = initial_player.map(|u| u.id);
+        let selected_tile = initial_player.map(|u| (u.x, u.y));
+
+        let mut game = Self {
+            scenario: ScenarioKind::Custom,
+            scenario_slug: parsed.slug,
+            custom_scenario_json: Some(raw_json),
+            bridge_label: parsed.bridge_label,
+            escape_label: parsed.escape_label,
+            view_mode: ViewMode::Isometric,
+            turn_number: 1,
+            phase: Phase::Player,
+            selected_unit_id,
+            selected_tile,
+            interaction_mode: None,
+            move_origin: None,
+            message: parsed.start_message,
+            map: parsed.map,
+            bridge_tiles: parsed.bridge_tiles,
+            escape_tiles: parsed.escape_tiles,
+            units,
+            turn_events: Vec::new(),
+            event_seq: 0,
+            render_buffer: String::new(),
+        };
+        game.refresh_render();
+        game
+    }
+
     fn refresh_render(&mut self) {
         let summary = self.summary();
         let move_tiles = self.reachable_tiles(self.selected_player_unit());
@@ -395,7 +517,7 @@ impl GameState {
         let _ = write!(
             self.render_buffer,
             "{{\"scenario\":\"{}\",\"view_mode\":\"{}\",\"turn_number\":{},\"phase\":\"{}\",\"selected_unit_id\":{},\"interaction_mode\":{},\"message\":\"{}\",\"event_seq\":{},\"map\":{{\"width\":{},\"height\":{},\"tiles\":[",
-            scenario_name(self.scenario),
+            json_escape(&self.scenario_slug),
             view_mode_name(summary.view_mode),
             summary.turn_number,
             summary.phase,
@@ -451,11 +573,11 @@ impl GameState {
                 bool_json(unit.moved),
                 bool_json(unit.acted),
                 bool_json(unit.leader),
-                json_escape(unit.name),
-                json_escape(unit.role),
-                json_escape(unit.tag),
-                json_escape(unit.basis),
-                json_escape(unit.note)
+                json_escape(&unit.name),
+                json_escape(&unit.role),
+                json_escape(&unit.tag),
+                json_escape(&unit.basis),
+                json_escape(&unit.note)
             );
         }
         self.render_buffer.push_str("],\"move_tiles\":[");
@@ -756,14 +878,14 @@ impl GameState {
             return "マップ外".to_string();
         };
         if self.bridge_tiles.contains(&(x, y)) {
-            return "人取橋 / 移動コスト 1 / 渡河可能".to_string();
+            return format!("{} / 移動コスト 1 / 渡河可能", self.bridge_label);
         }
         if tile.terrain == Terrain::Water {
             return "川 / 進入不可".to_string();
         }
         let mut traits: Vec<String> = Vec::new();
         if self.escape_tiles.contains(&(x, y)) {
-            traits.push("離脱マス（小浜方面）".to_string());
+            traits.push(self.escape_label.clone());
         }
         if tile.cover {
             traits.push("遮蔽あり".to_string());
@@ -1304,35 +1426,35 @@ impl UnitState {
             moved: false,
             acted: false,
             leader: false,
-            name: "",
-            role: "",
-            tag: "",
-            basis: "",
-            note: "",
+            name: String::new(),
+            role: String::new(),
+            tag: String::new(),
+            basis: String::new(),
+            note: String::new(),
         }
     }
 
     fn with_meta(
         mut self,
         leader: bool,
-        name: &'static str,
-        role: &'static str,
-        tag: &'static str,
-        basis: &'static str,
-        note: &'static str,
+        name: &str,
+        role: &str,
+        tag: &str,
+        basis: &str,
+        note: &str,
     ) -> Self {
         self.leader = leader;
-        self.name = name;
-        self.role = role;
-        self.tag = tag;
-        self.basis = basis;
-        self.note = note;
+        self.name = name.to_string();
+        self.role = role.to_string();
+        self.tag = tag.to_string();
+        self.basis = basis.to_string();
+        self.note = note.to_string();
         self
     }
 
-    fn display_name(&self) -> &'static str {
+    fn display_name(&self) -> &str {
         if !self.name.is_empty() {
-            self.name
+            &self.name
         } else {
             job_label(self.job)
         }
@@ -1352,13 +1474,6 @@ struct BattleSummary {
     is_player_turn: bool,
     selected_tile: Option<(i32, i32)>,
     move_origin: Option<(UnitId, i32, i32, bool)>,
-}
-
-fn scenario_name(scenario: ScenarioKind) -> &'static str {
-    match scenario {
-        ScenarioKind::Demo => "demo",
-        ScenarioKind::Hitotoribashi => "hitotoribashi",
-    }
 }
 
 fn build_hitotoribashi_map() -> (Map, HashSet<(i32, i32)>, HashSet<(i32, i32)>) {
@@ -1753,3 +1868,52 @@ fn pop_lowest(open: &mut Vec<(i32, i32, i32)>) -> Option<(i32, i32, i32)> {
 
 #[cfg(feature = "jindori")]
 mod jindori;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loads_custom_scenario_json_and_resets() {
+        let json = r#"{
+            "slug": "test_battle",
+            "start_message": "テスト開戦",
+            "bridge_label": "テスト橋",
+            "escape_label": "離脱マス（北）",
+            "map": {
+                "width": 4,
+                "height": 4,
+                "tiles": [
+                    {"x":0,"y":0,"terrain":"Road","height":2,"cover":false,"water":false,"bridge":false,"escape":true},
+                    {"x":1,"y":1,"terrain":"Water","height":0,"cover":false,"water":true,"bridge":false,"escape":false},
+                    {"x":2,"y":1,"terrain":"Road","height":1,"cover":false,"water":false,"bridge":true,"escape":false}
+                ]
+            },
+            "units": [
+                {"id":1,"clan":1,"job":"Strategist","team":"player","x":2,"y":2,"hp":90,"atk":15,"mov":3,"range":1,"leader":true,"name":"伊達政宗","role":"大将","tag":"masamune","basis":"fact","note":"注記"},
+                {"id":2,"clan":2,"job":"Yari","team":"enemy","x":2,"y":0,"hp":80,"atk":12,"mov":3,"range":1,"leader":true,"name":"敵大将","role":"敵","tag":"enemy_boss","basis":"fiction","note":"模式"}
+            ]
+        }"#;
+        let parsed = scenario_json::parse_scenario_json(json).expect("should parse JSON");
+        assert_eq!(parsed.slug, "test_battle");
+        assert_eq!(parsed.map.width, 4);
+        assert_eq!(parsed.map.height, 4);
+        assert!(parsed.bridge_tiles.contains(&(2, 1)));
+        assert!(parsed.escape_tiles.contains(&(0, 0)));
+        assert_eq!(parsed.units.len(), 2);
+
+        let mut game = GameState::from_parsed_scenario(parsed, json.to_string());
+        assert_eq!(game.scenario_slug, "test_battle");
+        assert_eq!(game.selected_unit_id, Some(1));
+        assert!(game.render_buffer.contains("\"scenario\":\"test_battle\""));
+        assert!(game.render_buffer.contains("伊達政宗"));
+        game.end_player_turn();
+        assert_eq!(game.turn_number, 2);
+    }
+
+    #[test]
+    fn rejects_invalid_json() {
+        assert!(scenario_json::parse_scenario_json("{bad").is_err());
+        assert!(scenario_json::parse_scenario_json("{}").is_err());
+    }
+}

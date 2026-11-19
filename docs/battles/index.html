@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>政宗の戦場 — 戦国SRPG 合戦一覧</title>
+    <meta name="description" content="伊達政宗の主要合戦を1合戦＝1Markdownファイルで再現する戦国SRPG「政宗の戦場」セット（全6本）。本『伊達の国』各章と連動。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="政宗の戦場 — 戦国SRPG 合戦一覧" />
+    <meta property="og:description" content="伊達政宗の主要合戦を1合戦＝1Markdownファイルで再現する戦国SRPG「政宗の戦場」セット（全6本）。本『伊達の国』各章と連動。" />
+    <meta property="og:url" content="https://oosawak.github.io/srpg/battles/" />
+    <meta property="og:image" content="https://oosawak.github.io/srpg/battles/assets/hitotoribashi-keyart.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://oosawak.github.io/srpg/battles/" />
+    <link rel="stylesheet" href="./engine.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="portalShell">
+      <header class="portalHero">
+        <p class="portalEyebrow">DATE MASAMUNE TACTICAL ARCHIVE</p>
+        <h1>政宗の戦場 — 合戦シナリオ一覧</h1>
+        <p class="portalLead">
+          本『伊達の国』の各章とつながる伊達政宗の主要合戦を、<strong>1合戦＝1 Markdownファイル</strong>のシナリオ定義と Rust/WASM エンジンで遊べる戦国SRPGです。各合戦は固有URLでそのまま共有でき、手動操作にも「自動で見る」観戦にも対応しています。
+        </p>
+        <div class="portalMetaRow">
+          <span id="portalCountBadge" class="portalCountBadge">収録合戦 6 本</span>
+          <span class="startBasisNote">
+            <span class="basisBadge basis-fact">史実</span>
+            <span class="basisBadge basis-legend">伝承</span>
+            <span class="basisBadge basis-fiction">創作</span>
+            資料に無い武将名は創作せず、模式部隊・地形模式化を明記
+          </span>
+        </div>
+      </header>
+
+      <section id="battleCardGrid" class="battleCardGrid" aria-label="合戦一覧">
+        <article class="battleCard">
+          <div class="battleCardTop has-keyart" style="background-image:url('./assets/hitotoribashi-keyart.webp')">
+            <span class="battleYearPill">1585年</span>
+            <h2>人取橋の合戦</h2>
+            <p class="battleCardPlace">天正13年11月17日（1585年） ／ 安達郡・本宮市青田字茂庭</p>
+          </div>
+          <div class="battleCardBody">
+            <p class="battleCardForces">伊達 約7千（伝承値） 対 南奥州諸侯連合 約3万（伝承値）</p>
+            <p class="battleCardOverview">父・伊達輝宗を二本松で失った若き当主・伊達政宗（19歳）は、小浜城を足場に二本松へ出陣。しかし佐竹義重率いる南奥州連合の大軍に押され、阿武隈川・人取橋のほとりで最大の危機を迎える。73歳の老将・鬼庭良直（左月斎）が橋の南詰めで殿（しんがり）を務め、伊達成実（18歳）が踏みとどまる間に、政宗は北の小浜方面へ退路を開く。</p>
+            <p class="battleCardWin"><strong>勝利条件:</strong> 政宗が北端の離脱マス（小浜方面）へ到達、または6ターン終了まで生存</p>
+            <div class="battleCardMeta">
+              <span class="battleCardChip">盤面 10×10</span>
+              <span class="battleCardChip">伊達軍 4部隊</span>
+              <span class="battleCardChip">南奥州諸侯連合 6部隊</span>
+              <span class="battleCardChip">最大 6T</span>
+            </div>
+            <a class="bookLinkInline" href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch07-aizu-shigezane" target="_blank" rel="noopener noreferrer">📖 『伊達の国』第7章「摺上原と人取橋」 ↗</a>
+            <div class="battleCardActions">
+              <a class="battlePlayLink" href="./hitotoribashi/">出陣する →</a>
+              <a class="battleAutoLink" href="./hitotoribashi/?auto=1">自動で見る</a>
+            </div>
+          </div>
+        </article>
+        <article class="battleCard">
+          <div class="battleCardTop">
+            <span class="battleYearPill">1588年</span>
+            <h2>大崎合戦</h2>
+            <p class="battleCardPlace">天正16年1月〜（1588年） ／ 陸奥国・志田郡・黒川郡方面（旧大崎領）</p>
+          </div>
+          <div class="battleCardBody">
+            <p class="battleCardForces">伊達勢（留守政景ら） 対 大崎勢・最上義光援軍 約5千（伝え）</p>
+            <p class="battleCardOverview">伊達政宗は大崎氏の内紛に乗じて大崎領へ兵を進めたが、大崎氏と縁の深い出羽山形の最上義光（政宗の伯父）が大崎方へ援軍を送り、戦局は一変する。厳冬の泥濘と雪の中、伊達勢を率いた政宗の叔父・留守政景は城に追い詰められて苦戦を強いられた。のちに政宗の母・義姫（義光の妹）の仲介によって和睦に至るまでの、緊迫の包囲戦を模式化した一戦。</p>
+            <p class="battleCardWin"><strong>勝利条件:</strong> 留守政景が南端の離脱マス（伊達領方面）へ到達、または7ターン終了まで生存（敵全滅でも勝利）</p>
+            <div class="battleCardMeta">
+              <span class="battleCardChip">盤面 10×10</span>
+              <span class="battleCardChip">伊達軍 5部隊</span>
+              <span class="battleCardChip">大崎・最上連合軍 6部隊</span>
+              <span class="battleCardChip">最大 7T</span>
+            </div>
+            <a class="bookLinkInline" href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch09-iwadeyama" target="_blank" rel="noopener noreferrer">📖 『伊達の国』第9章「迷い込む岩出山」 ↗</a>
+            <div class="battleCardActions">
+              <a class="battlePlayLink" href="./osaki/">出陣する →</a>
+              <a class="battleAutoLink" href="./osaki/?auto=1">自動で見る</a>
+            </div>
+          </div>
+        </article>
+        <article class="battleCard">
+          <div class="battleCardTop">
+            <span class="battleYearPill">1589年</span>
+            <h2>摺上原の戦い</h2>
+            <p class="battleCardPlace">天正17年6月5日（1589年） ／ 陸奥国・耶麻郡 磐梯山麓・摺上原</p>
+          </div>
+          <div class="battleCardBody">
+            <p class="battleCardForces">伊達 約2万3千（伝承値） 対 蘆名 約1万6千（伝承値・佐竹援軍含む）</p>
+            <p class="battleCardOverview">蘆名の重臣・猪苗代盛国が伊達に内応し、猪苗代城が前線基地となった。伊達軍は先手・猪苗代盛国、二番・片倉景綱、三番・伊達成実、四番・白石宗実、五番旗本・伊達政宗の陣立てで摺上原へ布陣。西風に乗った蘆名勢に序盤は押し込まれるも、成実と宗実が磐梯山麓を回り込んで側撃し、東風への風向き変化とともに形勢が逆転した。金上盛備・佐瀬種常らが踏みとどまる中、蘆名勢は日橋川へと総崩れとなり、会津の覇権が伊達へ移った。</p>
+            <p class="battleCardWin"><strong>勝利条件:</strong> 敵総大将・蘆名義広の撃破、または蘆名・佐竹軍の全滅</p>
+            <div class="battleCardMeta">
+              <span class="battleCardChip">盤面 12×10</span>
+              <span class="battleCardChip">伊達軍 6部隊</span>
+              <span class="battleCardChip">蘆名・佐竹軍 6部隊</span>
+              <span class="battleCardChip">最大 10T</span>
+            </div>
+            <a class="bookLinkInline" href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch07-aizu-shigezane" target="_blank" rel="noopener noreferrer">📖 『伊達の国』第7章「摺上原と人取橋」 ↗</a>
+            <div class="battleCardActions">
+              <a class="battlePlayLink" href="./suriagehara/">出陣する →</a>
+              <a class="battleAutoLink" href="./suriagehara/?auto=1">自動で見る</a>
+            </div>
+          </div>
+        </article>
+        <article class="battleCard">
+          <div class="battleCardTop">
+            <span class="battleYearPill">1590年</span>
+            <h2>葛西・大崎一揆</h2>
+            <p class="battleCardPlace">天正18〜19年（1590〜1591年） ／ 陸奥国・旧葛西大崎領（岩手沢方面の城砦）</p>
+          </div>
+          <div class="battleCardBody">
+            <p class="battleCardForces">伊達鎮圧軍（模式編成） 対 旧葛西・大崎領一揆勢（模式編成）</p>
+            <p class="battleCardOverview">豊臣秀吉の奥州仕置によって改易された旧葛西・大崎領で大規模な一揆が勃発した。伊達政宗には一揆を陰で扇動したという嫌疑がかけられ、家の存続を懸けて自ら鎮圧に出陣することとなる。大崎氏の旧家臣・氏家氏の城であった岩手沢城（のちの岩出山城）周辺も一揆の戦火で荒れ果てた。鎮圧ののち、政宗は先祖代々の米沢・伊達郡を失い、この旧葛西・大崎領へ移封されることになる。</p>
+            <p class="battleCardWin"><strong>勝利条件:</strong> 一揆勢・本隊（大将）の撃破、または一揆勢の全滅</p>
+            <div class="battleCardMeta">
+              <span class="battleCardChip">盤面 10×10</span>
+              <span class="battleCardChip">伊達鎮圧軍 5部隊</span>
+              <span class="battleCardChip">葛西・大崎一揆勢 6部隊</span>
+              <span class="battleCardChip">最大 10T</span>
+            </div>
+            <a class="bookLinkInline" href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch08-aizu-ryokoku" target="_blank" rel="noopener noreferrer">📖 『伊達の国』第8章「束の間の領国」 ↗</a>
+            <div class="battleCardActions">
+              <a class="battlePlayLink" href="./kasai-osaki/">出陣する →</a>
+              <a class="battleAutoLink" href="./kasai-osaki/?auto=1">自動で見る</a>
+            </div>
+          </div>
+        </article>
+        <article class="battleCard">
+          <div class="battleCardTop">
+            <span class="battleYearPill">1600年</span>
+            <h2>白石城と関ヶ原</h2>
+            <p class="battleCardPlace">慶長5年7月（1600年） ／ 陸奥国・刈田郡 白石城</p>
+          </div>
+          <div class="battleCardBody">
+            <p class="battleCardForces">伊達軍（徳川東軍方・旧臣も呼応） 対 上杉方・白石城守備隊（城主・甘粕景継不在）</p>
+            <p class="battleCardOverview">慶長5年（1600年）、徳川家康の上杉討伐に呼応した伊達政宗は、城主・甘粕景継が不在であった上杉領の白石城を攻めた。片倉景綱らが前線に立ち、出奔していた伊達成実も留守政景と景綱の説得に応じてこの白石の陣で帰参。さらに1591年の移封で伊達郡に残った旧臣たちも伊達方として呼応し、のちの仙台「三百人町」へつながる働きを見せた。奪還した白石城は山形・福島二正面の足場となり、戦後は片倉景綱の居城となる（第3章「松川の戦い」・第11章「若林の足軽町」とも連動）。</p>
+            <p class="battleCardWin"><strong>勝利条件:</strong> 上杉守備隊・本隊（大将）の撃破、または上杉守備隊の全滅</p>
+            <div class="battleCardMeta">
+              <span class="battleCardChip">盤面 11×10</span>
+              <span class="battleCardChip">伊達軍 6部隊</span>
+              <span class="battleCardChip">上杉方・白石城守備隊 5部隊</span>
+              <span class="battleCardChip">最大 10T</span>
+            </div>
+            <a class="bookLinkInline" href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-ch22-minami-no-mon" target="_blank" rel="noopener noreferrer">📖 『伊達の国』第22章「南の門 ― 白石・角田・亘理」 ↗</a>
+            <div class="battleCardActions">
+              <a class="battlePlayLink" href="./shiroishi/">出陣する →</a>
+              <a class="battleAutoLink" href="./shiroishi/?auto=1">自動で見る</a>
+            </div>
+          </div>
+        </article>
+        <article class="battleCard">
+          <div class="battleCardTop">
+            <span class="battleYearPill">1614年</span>
+            <h2>大坂の陣</h2>
+            <p class="battleCardPlace">慶長19〜20年（1614〜1615年） ／ 摂津・河内方面（大坂城外郭の街道）</p>
+          </div>
+          <div class="battleCardBody">
+            <p class="battleCardForces">仙台藩伊達軍（政宗・嫡男秀宗従軍） 対 豊臣方・大坂勢（模式編成）</p>
+            <p class="battleCardOverview">徳川家康が大坂の豊臣方を攻め、諸大名に参陣を命じた戦国最後の大戦。47歳の伊達政宗は、長男・伊達秀宗を伴って仙台藩の軍勢を率い参陣した。ここでの従軍と働きによって、戦後の1615年に秀宗は伊予宇和島10万石を与えられ、仙台本家と並ぶ分家・宇和島伊達家の初代藩主となる。徳川の世に伊達の名と家の位置を刻み込んだ、政宗最後の戦場を模式化した一戦。</p>
+            <p class="battleCardWin"><strong>勝利条件:</strong> 豊臣方・前線本隊（大将）の撃破、または豊臣方・大坂勢の全滅</p>
+            <div class="battleCardMeta">
+              <span class="battleCardChip">盤面 11×10</span>
+              <span class="battleCardChip">伊達軍（徳川方） 5部隊</span>
+              <span class="battleCardChip">豊臣方・大坂勢 5部隊</span>
+              <span class="battleCardChip">最大 10T</span>
+            </div>
+            <a class="bookLinkInline" href="https://oosawak.github.io/date-no-kuni/index.html#/post/date/book-col-uwajima" target="_blank" rel="noopener noreferrer">📖 『伊達の国』コラム「宇和島 ― 飛び地の番外編」 ↗</a>
+            <div class="battleCardActions">
+              <a class="battlePlayLink" href="./osaka/">出陣する →</a>
+              <a class="battleAutoLink" href="./osaka/?auto=1">自動で見る</a>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <footer class="portalFooter">
+        <span>一覧は <code>docs/battles/scenarios/*.md</code> から自動生成されています。</span>
+        <span>
+          <a href="../play/">現行の人取橋ページ（docs/play/）を見る</a>
+          ／
+          <a href="https://oosawak.github.io/date-no-kuni/" target="_blank" rel="noopener noreferrer">本『伊達の国』へ ↗</a>
+        </span>
+      </footer>
+    </main>
+
+    <script src="./scenario_parser.js"></script>
+    <script src="./index.js"></script>
+  </body>
+</html>
