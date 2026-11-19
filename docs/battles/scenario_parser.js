@@ -305,6 +305,62 @@
       .join(" ");
   }
 
+  function parseCoordList(raw) {
+    const str = String(raw ?? "").trim();
+    if (!str) return [];
+    const out = [];
+    const seen = new Set();
+    const re = /(-?\d+)\s*[,，]\s*(-?\d+)/g;
+    let m;
+    while ((m = re.exec(str)) !== null) {
+      const x = Number.parseInt(m[1], 10);
+      const y = Number.parseInt(m[2], 10);
+      const key = `${x},${y}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({ x, y });
+      }
+    }
+    return out;
+  }
+
+  function parseUnitPlacement(coordRaw) {
+    const raw = String(coordRaw ?? "").trim();
+    let spawnTurn = 1;
+    let cleaned = raw;
+    const reinfMatch = raw.match(/(?:増援|reinforce|turn|@)\s*[:：]?\s*(\d+)/i);
+    if (reinfMatch) {
+      spawnTurn = Math.max(1, Number.parseInt(reinfMatch[1], 10) || 1);
+      cleaned = raw.replace(reinfMatch[0], " ").trim();
+    }
+    const coordMatch = cleaned.match(/(-?\d+)\s*[,，\s]\s*(-?\d+)/);
+    if (!coordMatch) {
+      return null;
+    }
+    return {
+      x: Number.parseInt(coordMatch[1], 10),
+      y: Number.parseInt(coordMatch[2], 10),
+      spawnTurn,
+    };
+  }
+
+  function parseReinforcementLogs(raw) {
+    const map = {};
+    const parts = String(raw ?? "")
+      .split(/\s*\/\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      const m = part.match(/^(\d+)\s*[:：]\s*(.+)$/);
+      if (m) {
+        map[String(Number.parseInt(m[1], 10))] = m[2].trim();
+      } else {
+        map["*"] = part;
+      }
+    }
+    return map;
+  }
+
   function parseScenarioMarkdown(mdText) {
     const { meta, body } = parseFrontmatter(mdText);
     const sections = splitSections(body);
@@ -332,6 +388,7 @@
     const bookUrl = meta.book_url || bookLinkParsed?.url || "";
     const keyart = meta.keyart || "";
     const theme = meta.theme || "autumn";
+    const extra = (meta.extra || "").trim();
     const subtitle = meta.subtitle || "";
     const victoryText = basicMap["勝利条件"] || "";
     const defeatText = basicMap["敗北条件"] || "";
@@ -408,12 +465,11 @@
       const job = normalizeJob(row["兵種"] ?? row["job"] ?? "Ashigaru");
       const defaults = JOB_DEFAULTS[job] || JOB_DEFAULTS.Ashigaru;
       const coordRaw = String(row["配置"] ?? row["座標"] ?? row["pos"] ?? "0,0").trim();
-      const coordMatch = coordRaw.match(/(-?\d+)\s*[,，\s]\s*(-?\d+)/);
-      if (!coordMatch) {
+      const placement = parseUnitPlacement(coordRaw);
+      if (!placement) {
         throw new Error(`ユニット '${name || i + 1}' の配置座標が不正です: ${coordRaw}`);
       }
-      const x = Number.parseInt(coordMatch[1], 10);
-      const y = Number.parseInt(coordMatch[2], 10);
+      const { x, y, spawnTurn } = placement;
       const hp = parseIntSafe(row["HP"] ?? row["hp"], defaults.hp);
       const atk = parseIntSafe(row["攻撃"] ?? row["atk"], defaults.atk);
       const mov = parseIntSafe(row["移動"] ?? row["mov"], defaults.mov);
@@ -436,6 +492,7 @@
         team,
         x,
         y,
+        spawnTurn,
         hp,
         maxHp: hp,
         atk,
@@ -472,6 +529,11 @@
     const recordUnitTag = (rulesMap["殿記録対象"] || rulesMap["記録対象"] || "").trim();
     const recordLabel = (rulesMap["殿記録ラベル"] || rulesMap["記録ラベル"] || "").trim();
     const recordInitialStatus = (rulesMap["殿初期状態"] || rulesMap["記録初期状態"] || "").trim();
+    const playerCaptureTiles = parseCoordList(rulesMap["自軍制圧勝利"] || rulesMap["本丸制圧勝利"] || "");
+    const enemyCaptureTiles = parseCoordList(rulesMap["敵軍制圧敗北"] || rulesMap["本丸制圧敗北"] || "");
+    const captureLabel = (rulesMap["制圧目標名称"] || "本丸").trim();
+    const surviveLog = (rulesMap["生存勝利ログ"] || "").trim();
+    const reinforcementLogs = parseReinforcementLogs(rulesMap["増援ログ"] || "");
 
     const openingLogs = (rulesMap["開戦ログ"] || "")
       .split(/\s*\/\s*/)
@@ -490,6 +552,18 @@
         cutinTitle: "規定ターンを持ちこたえた！",
         title: `${playerArmy} 勝利（規定ターン防衛）`,
         lead: "最後まで戦線を保ち切り、戦局を支え抜いた。",
+      }),
+      capture: parseOutcomeLine(rulesMap["結果・制圧勝利"], {
+        cutinSub: title,
+        cutinTitle: `${captureLabel}を制圧！`,
+        title: `${playerArmy} 勝利（${captureLabel}制圧）`,
+        lead: `${captureLabel}へ突入して要衝を押さえ、戦いの大勢を決した。`,
+      }),
+      captured: parseOutcomeLine(rulesMap["結果・制圧敗北"], {
+        cutinSub: title,
+        cutinTitle: `無念… ${captureLabel}、陥落`,
+        title: `${enemyArmy}の勝利（${captureLabel}陥落）`,
+        lead: `${enemyArmy}の攻勢を支え切れず、${captureLabel}を制圧された。`,
       }),
       leaderDefeated: parseOutcomeLine(rulesMap["結果・大将撃破勝利"], {
         cutinSub: title,
@@ -532,6 +606,7 @@
       bookUrl,
       keyart,
       theme,
+      extra,
       victoryText,
       defeatText,
       startMessage,
@@ -559,6 +634,11 @@
         recordUnitTag,
         recordLabel,
         recordInitialStatus,
+        playerCaptureTiles,
+        enemyCaptureTiles,
+        captureLabel,
+        surviveLog,
+        reinforcementLogs,
         openingLogs,
         outcomes,
       },
@@ -576,9 +656,9 @@
     if (!Array.isArray(scenario.units) || scenario.units.length === 0) {
       throw new Error(`${scenario.slug}: ユニットが1体も定義されていません`);
     }
-    const occupied = new Set();
-    let playerCount = 0;
-    let enemyCount = 0;
+    const occupiedByTurn = new Map();
+    let initialPlayerCount = 0;
+    let initialEnemyCount = 0;
     for (const u of scenario.units) {
       if (u.x < 0 || u.y < 0 || u.x >= scenario.map.width || u.y >= scenario.map.height) {
         throw new Error(`${scenario.slug}: ユニット ${u.name || u.tag} の座標 (${u.x},${u.y}) がマップ外です`);
@@ -587,18 +667,59 @@
       if (!tile || tile.terrain === "Water") {
         throw new Error(`${scenario.slug}: ユニット ${u.name || u.tag} が進入不可の川 (${u.x},${u.y}) に配置されています`);
       }
+      const st = u.spawnTurn ?? 1;
+      if (!occupiedByTurn.has(st)) occupiedByTurn.set(st, new Set());
+      const occ = occupiedByTurn.get(st);
       const key = `${u.x},${u.y}`;
-      if (occupied.has(key)) {
-        throw new Error(`${scenario.slug}: 座標 (${u.x},${u.y}) にユニットが重複配置されています`);
+      if (occ.has(key)) {
+        throw new Error(`${scenario.slug}: 座標 (${u.x},${u.y}) に同ターン登場ユニットが重複配置されています`);
       }
-      occupied.add(key);
-      if (u.team === "player") playerCount += 1;
-      if (u.team === "enemy") enemyCount += 1;
+      occ.add(key);
+      if (st <= 1) {
+        if (u.team === "player") initialPlayerCount += 1;
+        if (u.team === "enemy") initialEnemyCount += 1;
+      }
     }
-    if (playerCount === 0 || enemyCount === 0) {
-      throw new Error(`${scenario.slug}: 自軍(${playerCount})と敵軍(${enemyCount})の両方が必要です`);
+    if (initialPlayerCount === 0 || initialEnemyCount === 0) {
+      throw new Error(
+        `${scenario.slug}: 初期配置の自軍(${initialPlayerCount})と敵軍(${initialEnemyCount})の両方が必要です`
+      );
+    }
+    const captureCoords = [
+      ...(scenario.rules?.playerCaptureTiles ?? []),
+      ...(scenario.rules?.enemyCaptureTiles ?? []),
+    ];
+    for (const pos of captureCoords) {
+      if (pos.x < 0 || pos.y < 0 || pos.x >= scenario.map.width || pos.y >= scenario.map.height) {
+        throw new Error(`${scenario.slug}: 制圧目標座標 (${pos.x},${pos.y}) がマップ外です`);
+      }
+      const tile = scenario.map.tiles[pos.y * scenario.map.width + pos.x];
+      if (!tile || tile.terrain === "Water") {
+        throw new Error(`${scenario.slug}: 制圧目標座標 (${pos.x},${pos.y}) が進入不可です`);
+      }
     }
     return true;
+  }
+
+  function toWasmUnitObject(u) {
+    return {
+      id: u.id,
+      clan: u.clan,
+      job: u.job,
+      team: u.team,
+      x: u.x,
+      y: u.y,
+      hp: u.hp,
+      atk: u.atk,
+      mov: u.mov,
+      range: u.range,
+      leader: Boolean(u.leader),
+      name: u.name,
+      role: u.role,
+      tag: u.tag,
+      basis: u.basis,
+      note: u.note,
+    };
   }
 
   function toWasmScenarioObject(scenario) {
@@ -625,24 +746,7 @@
           escape: Boolean(t.escape),
         })),
       },
-      units: scenario.units.map((u) => ({
-        id: u.id,
-        clan: u.clan,
-        job: u.job,
-        team: u.team,
-        x: u.x,
-        y: u.y,
-        hp: u.hp,
-        atk: u.atk,
-        mov: u.mov,
-        range: u.range,
-        leader: Boolean(u.leader),
-        name: u.name,
-        role: u.role,
-        tag: u.tag,
-        basis: u.basis,
-        note: u.note,
-      })),
+      units: scenario.units.filter((u) => (u.spawnTurn ?? 1) <= 1).map(toWasmUnitObject),
     };
   }
 
@@ -650,11 +754,18 @@
     return JSON.stringify(toWasmScenarioObject(scenario));
   }
 
+  function toWasmReinforcementsJson(scenario, turn) {
+    const wave = (scenario.units ?? []).filter((u) => (u.spawnTurn ?? 1) === turn);
+    return JSON.stringify(wave.map(toWasmUnitObject));
+  }
+
   const api = {
     parseScenarioMarkdown,
     validateScenario,
+    toWasmUnitObject,
     toWasmScenarioObject,
     toWasmScenarioJson,
+    toWasmReinforcementsJson,
   };
 
   if (typeof module !== "undefined" && module.exports) {

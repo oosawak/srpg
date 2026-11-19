@@ -161,6 +161,32 @@ pub extern "C" fn srpg_load_scenario_json(len: usize) -> i32 {
 }
 
 #[no_mangle]
+pub extern "C" fn srpg_spawn_units_json(len: usize) -> i32 {
+    let raw = {
+        let buf = input_buf_cell()
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if len > buf.len() {
+            return -1;
+        }
+        match core::str::from_utf8(&buf[..len]) {
+            Ok(s) => s.to_string(),
+            Err(_) => return -2,
+        }
+    };
+    let parsed_units = match scenario_json::parse_units_json(&raw) {
+        Ok(u) => u,
+        Err(_) => return -3,
+    };
+    let mut spawned = 0i32;
+    with_game_mut(|game| {
+        spawned = game.spawn_units(parsed_units) as i32;
+        game.refresh_render();
+    });
+    spawned
+}
+
+#[no_mangle]
 pub extern "C" fn srpg_reset() {
     with_game_mut(|game| {
         let scenario = game.scenario;
@@ -506,6 +532,61 @@ impl GameState {
         };
         game.refresh_render();
         game
+    }
+
+    fn find_nearest_open_tile(&self, start_x: i32, start_y: i32) -> Option<(i32, i32)> {
+        let mut queue = std::collections::VecDeque::new();
+        let mut visited = HashSet::new();
+        let clamped_x = start_x.clamp(0, (self.map.width as i32) - 1);
+        let clamped_y = start_y.clamp(0, (self.map.height as i32) - 1);
+        queue.push_back((clamped_x, clamped_y));
+        visited.insert((clamped_x, clamped_y));
+
+        while let Some((x, y)) = queue.pop_front() {
+            if let Some(tile) = self.map.get(x, y) {
+                if tile.terrain != Terrain::Water && self.unit_at(x, y).is_none() {
+                    return Some((x, y));
+                }
+            }
+            for (dx, dy) in [(0, -1), (-1, 0), (0, 1), (1, 0)] {
+                let nx = x + dx;
+                let ny = y + dy;
+                if nx < 0
+                    || ny < 0
+                    || nx >= self.map.width as i32
+                    || ny >= self.map.height as i32
+                {
+                    continue;
+                }
+                if visited.insert((nx, ny)) {
+                    queue.push_back((nx, ny));
+                }
+            }
+        }
+        None
+    }
+
+    fn spawn_units(&mut self, parsed_units: Vec<scenario_json::ParsedUnit>) -> usize {
+        let mut spawned = 0usize;
+        for u in parsed_units {
+            if self.units.iter().any(|existing| existing.id == u.id) {
+                continue;
+            }
+            let Some((sx, sy)) = self.find_nearest_open_tile(u.x, u.y) else {
+                continue;
+            };
+            let team = if u.is_enemy { Team::Enemy } else { Team::Player };
+            let unit = UnitState::new(
+                u.id, u.clan, u.job, team, sx, sy, u.hp, u.atk, u.mov, u.range,
+            )
+            .with_meta(u.leader, &u.name, &u.role, &u.tag, &u.basis, &u.note);
+            self.units.push(unit);
+            spawned += 1;
+        }
+        if spawned > 0 {
+            self.event_seq = self.event_seq.wrapping_add(1);
+        }
+        spawned
     }
 
     fn refresh_render(&mut self) {

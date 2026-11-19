@@ -319,6 +319,96 @@ fn parse_job(name: &str) -> Job {
     }
 }
 
+fn parse_unit_object(unit_val: &JsonValue, idx: usize) -> Result<ParsedUnit, String> {
+    let uobj = unit_val
+        .as_object()
+        .ok_or_else(|| "unit entry must be an object".to_string())?;
+    let id = uobj
+        .get("id")
+        .and_then(JsonValue::as_i64)
+        .unwrap_or((idx + 1) as i64) as u32;
+    let team_str = uobj.get("team").and_then(JsonValue::as_str).unwrap_or("player");
+    let is_enemy = team_str == "enemy";
+    let clan = uobj
+        .get("clan")
+        .and_then(JsonValue::as_i64)
+        .unwrap_or(if is_enemy { 2 } else { 1 }) as u32;
+    let job = uobj
+        .get("job")
+        .and_then(JsonValue::as_str)
+        .map(parse_job)
+        .unwrap_or(Job::Ashigaru);
+    let x = uobj.get("x").and_then(JsonValue::as_i64).unwrap_or(0) as i32;
+    let y = uobj.get("y").and_then(JsonValue::as_i64).unwrap_or(0) as i32;
+    let hp = uobj.get("hp").and_then(JsonValue::as_i64).unwrap_or(90).max(1) as i32;
+    let atk = uobj.get("atk").and_then(JsonValue::as_i64).unwrap_or(14).max(1) as i32;
+    let mov = uobj.get("mov").and_then(JsonValue::as_i64).unwrap_or(3).max(1) as i32;
+    let range = uobj.get("range").and_then(JsonValue::as_i64).unwrap_or(1).max(1) as i32;
+    let leader = uobj.get("leader").and_then(JsonValue::as_bool).unwrap_or(false);
+    let name = uobj
+        .get("name")
+        .and_then(JsonValue::as_str)
+        .unwrap_or("")
+        .to_string();
+    let role = uobj
+        .get("role")
+        .and_then(JsonValue::as_str)
+        .unwrap_or("")
+        .to_string();
+    let tag = uobj
+        .get("tag")
+        .and_then(JsonValue::as_str)
+        .unwrap_or("")
+        .to_string();
+    let basis = uobj
+        .get("basis")
+        .and_then(JsonValue::as_str)
+        .unwrap_or("")
+        .to_string();
+    let note = uobj
+        .get("note")
+        .and_then(JsonValue::as_str)
+        .unwrap_or("")
+        .to_string();
+
+    Ok(ParsedUnit {
+        id,
+        clan,
+        job,
+        is_enemy,
+        x,
+        y,
+        hp,
+        atk,
+        mov,
+        range,
+        leader,
+        name,
+        role,
+        tag,
+        basis,
+        note,
+    })
+}
+
+pub fn parse_units_json(input: &str) -> Result<Vec<ParsedUnit>, String> {
+    let mut parser = Parser::new(input);
+    let root = parser.parse_value()?;
+    let arr = match &root {
+        JsonValue::Array(items) => items.as_slice(),
+        JsonValue::Object(map) => map
+            .get("units")
+            .and_then(JsonValue::as_array)
+            .ok_or_else(|| "missing 'units' array".to_string())?,
+        _ => return Err("reinforcements JSON must be an array or {units:[...]}".to_string()),
+    };
+    let mut units = Vec::with_capacity(arr.len());
+    for (idx, val) in arr.iter().enumerate() {
+        units.push(parse_unit_object(val, idx)?);
+    }
+    Ok(units)
+}
+
 pub fn parse_scenario_json(input: &str) -> Result<ParsedScenario, String> {
     let mut parser = Parser::new(input);
     let root = parser.parse_value()?;
@@ -424,75 +514,7 @@ pub fn parse_scenario_json(input: &str) -> Result<ParsedScenario, String> {
     let mut units = Vec::with_capacity(units_arr.len());
 
     for (idx, unit_val) in units_arr.iter().enumerate() {
-        let uobj = unit_val
-            .as_object()
-            .ok_or_else(|| "unit entry must be an object".to_string())?;
-        let id = uobj
-            .get("id")
-            .and_then(JsonValue::as_i64)
-            .unwrap_or((idx + 1) as i64) as u32;
-        let team_str = uobj.get("team").and_then(JsonValue::as_str).unwrap_or("player");
-        let is_enemy = team_str == "enemy";
-        let clan = uobj
-            .get("clan")
-            .and_then(JsonValue::as_i64)
-            .unwrap_or(if is_enemy { 2 } else { 1 }) as u32;
-        let job = uobj
-            .get("job")
-            .and_then(JsonValue::as_str)
-            .map(parse_job)
-            .unwrap_or(Job::Ashigaru);
-        let x = uobj.get("x").and_then(JsonValue::as_i64).unwrap_or(0) as i32;
-        let y = uobj.get("y").and_then(JsonValue::as_i64).unwrap_or(0) as i32;
-        let hp = uobj.get("hp").and_then(JsonValue::as_i64).unwrap_or(90).max(1) as i32;
-        let atk = uobj.get("atk").and_then(JsonValue::as_i64).unwrap_or(14).max(1) as i32;
-        let mov = uobj.get("mov").and_then(JsonValue::as_i64).unwrap_or(3).max(1) as i32;
-        let range = uobj.get("range").and_then(JsonValue::as_i64).unwrap_or(1).max(1) as i32;
-        let leader = uobj.get("leader").and_then(JsonValue::as_bool).unwrap_or(false);
-        let name = uobj
-            .get("name")
-            .and_then(JsonValue::as_str)
-            .unwrap_or("")
-            .to_string();
-        let role = uobj
-            .get("role")
-            .and_then(JsonValue::as_str)
-            .unwrap_or("")
-            .to_string();
-        let tag = uobj
-            .get("tag")
-            .and_then(JsonValue::as_str)
-            .unwrap_or("")
-            .to_string();
-        let basis = uobj
-            .get("basis")
-            .and_then(JsonValue::as_str)
-            .unwrap_or("")
-            .to_string();
-        let note = uobj
-            .get("note")
-            .and_then(JsonValue::as_str)
-            .unwrap_or("")
-            .to_string();
-
-        units.push(ParsedUnit {
-            id,
-            clan,
-            job,
-            is_enemy,
-            x,
-            y,
-            hp,
-            atk,
-            mov,
-            range,
-            leader,
-            name,
-            role,
-            tag,
-            basis,
-            note,
-        });
+        units.push(parse_unit_object(unit_val, idx)?);
     }
 
     if units.is_empty() {

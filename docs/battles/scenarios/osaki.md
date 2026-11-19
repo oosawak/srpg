@@ -1,6 +1,6 @@
 ---
 slug: osaki
-order: 2
+order: 3
 year: 1588
 title: 大崎合戦
 keyart: ../assets/osaki-keyart.webp

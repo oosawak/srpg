@@ -1,20 +1,28 @@
 {
   "generated_from": "docs/battles/scenarios/*.md",
-  "count": 6,
+  "count": 10,
   "files": [
     "hitotoribashi.md",
+    "nihonmatsu.md",
     "osaki.md",
     "suriagehara.md",
+    "sukagawa.md",
     "kasai-osaki.md",
     "shiroishi.md",
-    "osaka.md"
+    "hasedo.md",
+    "osaka-fuyu.md",
+    "osaka-natsu.md"
   ],
   "slugs": [
     "hitotoribashi",
+    "nihonmatsu",
     "osaki",
     "suriagehara",
+    "sukagawa",
     "kasai-osaki",
     "shiroishi",
-    "osaka"
+    "hasedo",
+    "osaka-fuyu",
+    "osaka-natsu"
   ]
 }

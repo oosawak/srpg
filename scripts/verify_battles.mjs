@@ -42,6 +42,14 @@ async function createWasmInstance() {
       const rc = ex.srpg_load_scenario_json(payload.length);
       if (rc !== 1) throw new Error(`srpg_load_scenario_json returned ${rc}`);
     },
+    spawnUnitsJson(jsonStr) {
+      const payload = encoder.encode(jsonStr);
+      const ptr = ex.srpg_input_ptr(payload.length);
+      new Uint8Array(ex.memory.buffer, ptr, payload.length).set(payload);
+      const rc = ex.srpg_spawn_units_json(payload.length);
+      if (rc < 0) throw new Error(`srpg_spawn_units_json returned ${rc}`);
+      return rc;
+    },
   };
 }
 
@@ -74,6 +82,15 @@ function evaluateOutcome(sc, state) {
     return { victory: false, reason: "defeat" };
   }
 
+  if (Array.isArray(rules.enemyCaptureTiles) && rules.enemyCaptureTiles.length > 0) {
+    const enemyCaptured = enemiesAlive.some((e) =>
+      rules.enemyCaptureTiles.some((pt) => pt.x === e.x && pt.y === e.y)
+    );
+    if (enemyCaptured) {
+      return { victory: false, reason: "captured" };
+    }
+  }
+
   if (rules.escapeUnitTag) {
     const escUnit = state.units.find((u) => u.tag === rules.escapeUnitTag && u.hp > 0);
     if (escUnit) {
@@ -81,6 +98,15 @@ function evaluateOutcome(sc, state) {
       if (tile && tile.escape) {
         return { victory: true, reason: "escape" };
       }
+    }
+  }
+
+  if (Array.isArray(rules.playerCaptureTiles) && rules.playerCaptureTiles.length > 0) {
+    const playerCaptured = playersAlive.some((p) =>
+      rules.playerCaptureTiles.some((pt) => pt.x === p.x && pt.y === p.y)
+    );
+    if (playerCaptured) {
+      return { victory: true, reason: "capture" };
     }
   }
 
@@ -143,12 +169,24 @@ async function runAutoSimulation(sc, wasmJson) {
   let totalMoves = 0;
   let totalAttacks = 0;
   let totalAbilities = 0;
+  let reinforcementsSpawned = 0;
+  const spawnedTurns = new Set();
+  const expectedReinforcements = sc.units.filter((u) => (u.spawnTurn ?? 1) > 1);
   let recordDefendedTurns = sc.rules.recordUnitTag ? 1 : 0;
   let recordFallenTurn = null;
   const maxLoopTurns = (sc.rules.maxTurns || 12) + 4;
 
   for (let iter = 0; iter < maxLoopTurns && !outcome; iter += 1) {
     let st = normalize(wasm.readRender(), aiConfig);
+
+    // Spawn turn-N reinforcements at start of player phase (matching app.js)
+    const reinfWave = sc.units.filter((u) => (u.spawnTurn ?? 1) === st.turnNumber && st.turnNumber > 1);
+    if (reinfWave.length > 0 && !spawnedTurns.has(st.turnNumber)) {
+      spawnedTurns.add(st.turnNumber);
+      const added = wasm.spawnUnitsJson(parser.toWasmReinforcementsJson(sc, st.turnNumber));
+      reinforcementsSpawned += added;
+      st = normalize(wasm.readRender(), aiConfig);
+    }
 
     // Track record unit
     if (sc.rules.recordUnitTag) {
@@ -236,6 +274,12 @@ async function runAutoSimulation(sc, wasmJson) {
   const finalState = normalize(wasm.readRender(), aiConfig);
   const pAlive = finalState.units.filter((u) => u.team === "player" && u.hp > 0).length;
   const eAlive = finalState.units.filter((u) => u.team === "enemy" && u.hp > 0).length;
+  const pTotal = finalState.units.filter((u) => u.team === "player").length;
+  const eTotal = finalState.units.filter((u) => u.team === "enemy").length;
+
+  if (expectedReinforcements.length > 0 && finalState.turnNumber >= Math.min(...expectedReinforcements.map((u) => u.spawnTurn)) && reinforcementsSpawned === 0) {
+    throw new Error(`${sc.slug}: Expected reinforcements did NOT spawn!`);
+  }
 
   return {
     slug: sc.slug,
@@ -248,11 +292,12 @@ async function runAutoSimulation(sc, wasmJson) {
       outcome.reason === "survive" || outcome.reason === "timeout"
         ? sc.rules.surviveTurns || sc.rules.maxTurns
         : finalState.turnNumber,
-    pAlive: `${pAlive}/${sc.units.filter((u) => u.team === "player").length}`,
-    eAlive: `${eAlive}/${sc.units.filter((u) => u.team === "enemy").length}`,
+    pAlive: `${pAlive}/${pTotal}`,
+    eAlive: `${eAlive}/${eTotal}`,
     moves: totalMoves,
     attacks: totalAttacks,
     abilities: totalAbilities,
+    reinforcementsSpawned,
     recordDefendedTurns: sc.rules.recordUnitTag ? recordDefendedTurns : null,
     recordFallenTurn,
   };
@@ -310,8 +355,9 @@ async function main() {
     const res = await runAutoSimulation(sc, wasmJson);
     results.push(res);
     const recStr = res.recordDefendedTurns != null ? `, 殿防衛=${res.recordDefendedTurns}T` : "";
+    const reinfStr = res.reinforcementsSpawned > 0 ? `, 増援=${res.reinforcementsSpawned}部隊` : "";
     console.log(
-      `[PASS] ${res.slug} (${res.title} ${res.year}, ${res.mapSize}) -> ${res.victory ? "勝利" : "敗北"} [${res.reason}] in ${res.turns}T (自軍 ${res.pAlive}, 敵軍 ${res.eAlive}, 移動=${res.moves}, 攻撃=${res.attacks}, 技=${res.abilities}${recStr})`
+      `[PASS] ${res.slug} (${res.title} ${res.year}, ${res.mapSize}) -> ${res.victory ? "勝利" : "敗北"} [${res.reason}] in ${res.turns}T (自軍 ${res.pAlive}, 敵軍 ${res.eAlive}, 移動=${res.moves}, 攻撃=${res.attacks}, 技=${res.abilities}${reinfStr}${recStr})`
     );
   }
 
@@ -332,6 +378,14 @@ async function main() {
     }
     if (!pageHtml.includes(`property="og:title"`)) {
       throw new Error(`${pagePath} missing OGP tags`);
+    }
+    if (sc.extra) {
+      if (!pageHtml.includes(`class="startExtraBadge">${sc.extra}<`)) {
+        throw new Error(`${pagePath} missing extra badge '${sc.extra}'`);
+      }
+      if (!indexHtml.includes(`class="battleExtraPill">${sc.extra}<`)) {
+        throw new Error(`index.html missing extra pill '${sc.extra}'`);
+      }
     }
     if (!indexHtml.includes(`./${sc.slug}/`)) {
       throw new Error(`index.html missing link to ./${sc.slug}/`);

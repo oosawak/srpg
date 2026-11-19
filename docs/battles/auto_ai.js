@@ -582,12 +582,32 @@
   // Role: general (and flank) — approach enemies, attack best target, heal at <=30% HP
   function planGeneralTurn(unit, state, options = {}) {
     const preferLeader = Boolean(options.preferLeader);
+    const captureTiles = Array.isArray(options.captureTiles) ? options.captureTiles : [];
     const enemies = aliveEnemies(state);
-    if (enemies.length === 0) {
+    if (enemies.length === 0 && captureTiles.length === 0) {
       return { role: preferLeader ? "flank" : "general", moveTo: null, action: null };
     }
 
     const reach = computeReachableMap(unit, state);
+
+    // Immediate capture win check: if a player capture objective tile is reachable right now, take it!
+    if (captureTiles.length > 0 && !unit.moved) {
+      const captureSet = new Set(captureTiles.map((c) => tileKey(c.x, c.y)));
+      const directCapture = reach.tiles.find(
+        (cand) => captureSet.has(tileKey(cand.x, cand.y)) && !(cand.x === unit.x && cand.y === unit.y)
+      );
+      if (directCapture) {
+        return {
+          role: "capture",
+          moveTo: { x: directCapture.x, y: directCapture.y },
+          action: null,
+        };
+      }
+    }
+
+    if (enemies.length === 0) {
+      return { role: preferLeader ? "flank" : "general", moveTo: null, action: null };
+    }
     const maxHp = unit.maxHp ?? unit.max_hp ?? unit.hp ?? 1;
     const isLowHp = maxHp > 0 && unit.hp * 10 <= maxHp * 3;
     const healAbility = !unit.acted ? findHealAbility(unit, state) : null;
@@ -751,11 +771,13 @@
       const anchor = scenarioConfig?.initialPositions?.[unit.tag] ?? { x: unit.x, y: unit.y };
       return planHoldPosTurn(unit, state, anchor);
     }
+    const captureTiles = scenarioConfig?.rules?.playerCaptureTiles ?? [];
     if (aiRole === "flank") {
-      return planGeneralTurn(unit, state, { preferLeader: true });
+      return planGeneralTurn(unit, state, { preferLeader: true, captureTiles });
     }
     return planGeneralTurn(unit, state, {
       preferLeader: Boolean(scenarioConfig?.rules?.defeatEnemyLeader),
+      captureTiles,
     });
   }
 

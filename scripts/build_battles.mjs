@@ -169,7 +169,7 @@ function renderBattlePageHtml(sc) {
               <div><dt>ターン</dt><dd id="turnNumber">1</dd></div>
               <div><dt>フェーズ</dt><dd id="phaseName">${escapeHtml(sc.playerArmy)}</dd></div>
               <div><dt>選択中</dt><dd id="selectedUnit">-</dd></div>
-              <div><dt>残存数</dt><dd id="unitCount">${sc.units.length}</dd></div>
+              <div><dt>残存数</dt><dd id="unitCount">${sc.units.filter((u) => (u.spawnTurn ?? 1) <= 1).length}</dd></div>
             </dl>
             <div id="bootStatus" class="bootStatus" hidden>booting...</div>
             <div id="inputProbe" class="bootStatus" hidden>input: none</div>
@@ -205,12 +205,15 @@ function renderBattlePageHtml(sc) {
     <!-- 開始画面オーバーレイ -->
     <div id="startOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
       <div class="startCard">
-        <div id="startArtWrap" class="startArtWrap ${sc.keyart ? "has-image" : `theme-banner theme-${escapeHtml(sc.theme || "autumn")}`}">
+        <div id="startArtWrap" class="startArtWrap ${sc.keyart ? `has-image${sc.theme === "mist" ? " has-mist" : ""}` : `theme-banner theme-${escapeHtml(sc.theme || "autumn")}`}">
           <img id="startArtImg" class="startArt" width="800" height="533"${sc.keyart ? ` src="${escapeHtml(sc.keyart)}" alt="${escapeHtml(sc.title)} キーアート"` : ` hidden alt=""`} />
           <div id="startArtEmblem" class="startArtEmblem" aria-hidden="true">${escapeHtml(sc.year ? String(sc.year) : "")}</div>
           <div class="startArtScrim"></div>
           <div class="startArtCaption">
-            <p id="startEyebrow" class="startEyebrow">${escapeHtml(sc.date)} ${escapeHtml(sc.place)}</p>
+            <div class="startEyebrowRow">
+              <span id="startExtraBadge" class="startExtraBadge"${sc.extra ? "" : " hidden"}>${escapeHtml(sc.extra)}</span>
+              <p id="startEyebrow" class="startEyebrow">${escapeHtml(sc.date)} ${escapeHtml(sc.place)}</p>
+            </div>
             <h1 id="startTitle">${escapeHtml(sc.title)}</h1>
             <p id="startSubtitle" class="startSubtitle">${escapeHtml(sc.forces)}</p>
           </div>
@@ -398,13 +401,21 @@ function renderIndexPageHtml(scenarios) {
       const topClass = hasArt ? "battleCardTop has-keyart" : "battleCardTop";
       const playerCount = sc.units.filter((u) => u.team === "player").length;
       const enemyCount = sc.units.filter((u) => u.team === "enemy").length;
+      const reinfCount = sc.units.filter((u) => (u.spawnTurn ?? 1) > 1).length;
+      const extraPill = sc.extra
+        ? `\n              <span class="battleExtraPill">${escapeHtml(sc.extra)}</span>`
+        : "";
+      const reinfChip =
+        reinfCount > 0 ? `\n              <span class="battleCardChip">増援 ${reinfCount}部隊</span>` : "";
       const bookRow = sc.bookUrl
         ? `<a class="bookLinkInline" href="${escapeHtml(sc.bookUrl)}" target="_blank" rel="noopener noreferrer">📖 ${escapeHtml(sc.bookChapter || "『伊達の国』")} ↗</a>`
         : "";
 
       return `        <article class="battleCard">
           <div class="${topClass}"${topStyle}>
-            <span class="battleYearPill">${escapeHtml(sc.year ? `${sc.year}年` : sc.date)}</span>
+            <div class="battleCardBadgeRow">
+              <span class="battleYearPill">${escapeHtml(sc.year ? `${sc.year}年` : sc.date)}</span>${extraPill}
+            </div>
             <h2>${escapeHtml(sc.title)}</h2>
             <p class="battleCardPlace">${escapeHtml(sc.date)} ／ ${escapeHtml(sc.place)}</p>
           </div>
@@ -415,7 +426,7 @@ function renderIndexPageHtml(scenarios) {
             <div class="battleCardMeta">
               <span class="battleCardChip">盤面 ${sc.map.width}×${sc.map.height}</span>
               <span class="battleCardChip">${escapeHtml(sc.playerArmy)} ${playerCount}部隊</span>
-              <span class="battleCardChip">${escapeHtml(sc.enemyArmy)} ${enemyCount}部隊</span>
+              <span class="battleCardChip">${escapeHtml(sc.enemyArmy)} ${enemyCount}部隊</span>${reinfChip}
               <span class="battleCardChip">最大 ${sc.rules.maxTurns}T</span>
             </div>
             ${bookRow}

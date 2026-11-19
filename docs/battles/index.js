@@ -26,6 +26,12 @@
         const topClass = hasArt ? "battleCardTop has-keyart" : "battleCardTop";
         const playerCount = sc.units.filter((u) => u.team === "player").length;
         const enemyCount = sc.units.filter((u) => u.team === "enemy").length;
+        const reinfCount = sc.units.filter((u) => (u.spawnTurn ?? 1) > 1).length;
+        const extraPill = sc.extra
+          ? `<span class="battleExtraPill">${escapeHtml(sc.extra)}</span>`
+          : "";
+        const reinfChip =
+          reinfCount > 0 ? `<span class="battleCardChip">増援 ${reinfCount}部隊</span>` : "";
         const bookRow = sc.bookUrl
           ? `<a class="bookLinkInline" href="${escapeHtml(sc.bookUrl)}" target="_blank" rel="noopener noreferrer">📖 ${escapeHtml(sc.bookChapter || "『伊達の国』")} ↗</a>`
           : "";
@@ -33,7 +39,10 @@
         return `
           <article class="battleCard">
             <div class="${topClass}"${topStyle}>
-              <span class="battleYearPill">${escapeHtml(sc.year ? `${sc.year}年` : sc.date)}</span>
+              <div class="battleCardBadgeRow">
+                <span class="battleYearPill">${escapeHtml(sc.year ? `${sc.year}年` : sc.date)}</span>
+                ${extraPill}
+              </div>
               <h2>${escapeHtml(sc.title)}</h2>
               <p class="battleCardPlace">${escapeHtml(sc.date)} ／ ${escapeHtml(sc.place)}</p>
             </div>
@@ -45,6 +54,7 @@
                 <span class="battleCardChip">盤面 ${sc.map.width}×${sc.map.height}</span>
                 <span class="battleCardChip">${escapeHtml(sc.playerArmy)} ${playerCount}部隊</span>
                 <span class="battleCardChip">${escapeHtml(sc.enemyArmy)} ${enemyCount}部隊</span>
+                ${reinfChip}
                 ${sc.rules.maxTurns ? `<span class="battleCardChip">最大 ${sc.rules.maxTurns}T</span>` : ""}
               </div>
               ${bookRow}

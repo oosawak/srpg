@@ -2404,3 +2404,79 @@ dd {
     font-size: 18px;
   }
 }
+
+/* =========================================================
+   Extra Badge (番外編), Mist Atmosphere, New Terrain Swatches
+   ========================================================= */
+.battleCardBadgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.battleCardBadgeRow .battleYearPill {
+  margin-bottom: 0;
+}
+
+.battleExtraPill,
+.startExtraBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.34), rgba(217, 119, 6, 0.32));
+  border: 1px solid rgba(251, 191, 36, 0.72);
+  color: #fef3c7;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.startEyebrowRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.startEyebrowRow .startEyebrow {
+  margin: 0;
+}
+
+.startExtraBadge[hidden] {
+  display: none;
+}
+
+.startArtWrap.theme-mist {
+  background: linear-gradient(135deg, #273749 0%, #374b5e 48%, #1d2936 100%);
+}
+
+.startArtWrap.has-mist::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 65% 42% at 22% 72%, rgba(226, 238, 248, 0.24), transparent 72%),
+    radial-gradient(ellipse 60% 38% at 78% 64%, rgba(214, 230, 244, 0.2), transparent 70%),
+    linear-gradient(180deg, rgba(220, 234, 246, 0.08) 0%, rgba(220, 234, 246, 0.16) 55%, rgba(13, 20, 32, 0.12) 100%);
+  animation: mistDrift 11s ease-in-out infinite alternate;
+}
+
+@keyframes mistDrift {
+  0% {
+    opacity: 0.72;
+    transform: translateX(-1.5%);
+  }
+  100% {
+    opacity: 0.96;
+    transform: translateX(1.5%);
+  }
+}
+
+.swatch.palisade { background: #9b3b2c; }
+.swatch.earthwork { background: #786248; }

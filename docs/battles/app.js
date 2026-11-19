@@ -68,6 +68,7 @@ const startOverlay = rootQuery("#startOverlay");
 const startArtWrap = rootQuery("#startArtWrap");
 const startArtImg = rootQuery("#startArtImg");
 const startArtEmblem = rootQuery("#startArtEmblem");
+const startExtraBadge = rootQuery("#startExtraBadge");
 const startEyebrow = rootQuery("#startEyebrow");
 const startTitle = rootQuery("#startTitle");
 const startSubtitle = rootQuery("#startSubtitle");
@@ -203,6 +204,7 @@ const battleTracker = {
   recordEngagements: 0,
   lastProcessedEventSeq: -1,
   lastTurnLogged: 0,
+  spawnedTurns: new Set(),
   logs: [],
 };
 
@@ -267,7 +269,9 @@ function createEmptyState() {
 }
 
 function buildLocalStateFromScenario(scenario) {
-  const units = scenario.units.map((u) => ({
+  const units = scenario.units
+    .filter((u) => (u.spawnTurn ?? 1) <= 1)
+    .map((u) => ({
     id: u.id,
     clan: u.clan,
     job: u.job,
@@ -430,9 +434,12 @@ const FACE_PORTRAIT_TAGS = new Set([
   "kanagami",
   "sase",
   "morikuni",
+  "nobushige",
+  "mototsugu",
+  "yoshitsugu",
 ]);
 
-// 6 named generals without face images -> geometric family-crest cards
+// Named generals without face images -> geometric family-crest cards
 const CREST_CARD_GENERALS = {
   oniwa: {
     crestName: "三つ鱗紋",
@@ -469,6 +476,54 @@ const CREST_CARD_GENERALS = {
     motif: "hishi",
     bg: "#172940",
     accent: "#fde047",
+  },
+  kanetsugu: {
+    crestName: "三つ盛亀甲",
+    motif: "kikko",
+    bg: "#33141d",
+    accent: "#f4c661",
+  },
+  keiji: {
+    crestName: "加賀梅鉢",
+    motif: "umebachi",
+    bg: "#3d1319",
+    accent: "#fbbf24",
+  },
+  sakenobe: {
+    crestName: "丸に三つ星",
+    motif: "mitsuboshi",
+    bg: "#12293e",
+    accent: "#93c5fd",
+  },
+  shimura: {
+    crestName: "丸に二引両",
+    motif: "futahiki",
+    bg: "#132a42",
+    accent: "#7dd3fc",
+  },
+  honjo: {
+    crestName: "丸に井桁",
+    motif: "igeta",
+    bg: "#2f1520",
+    accent: "#f87171",
+  },
+  morichika: {
+    crestName: "七つ酢漿草",
+    motif: "katabami",
+    bg: "#36141b",
+    accent: "#fcd34d",
+  },
+  shigenari: {
+    crestName: "隅立て四つ目",
+    motif: "yotsume",
+    bg: "#33141d",
+    accent: "#fda4af",
+  },
+  susukida: {
+    crestName: "違い鷹の羽",
+    motif: "takanoha",
+    bg: "#35171a",
+    accent: "#fca5a5",
   },
 };
 
@@ -544,6 +599,76 @@ function renderCrestSvg(motif, accent = "#f4c661") {
         <polygon points="32,12 48,32 32,52 16,32" fill="none" stroke="${stroke}" stroke-width="2.4" />
         <polygon points="32,18 42,30 32,30 22,30" fill="${stroke}" />
         <polygon points="32,46 42,34 32,34 22,34" fill="${stroke}" />
+      `;
+      break;
+    case "kikko":
+      inner = `
+        <polygon points="32,10 42,16 42,28 32,34 22,28 22,16" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <polygon points="21,29 31,35 31,47 21,53 11,47 11,35" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <polygon points="43,29 53,35 53,47 43,53 33,47 33,35" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <circle cx="32" cy="22" r="3.4" fill="${stroke}" />
+        <circle cx="21" cy="41" r="3.4" fill="${stroke}" />
+        <circle cx="43" cy="41" r="3.4" fill="${stroke}" />
+      `;
+      break;
+    case "umebachi":
+      inner = `
+        <circle cx="32" cy="32" r="6.8" fill="${stroke}" />
+        <circle cx="32" cy="15" r="7.2" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <circle cx="48.2" cy="26.7" r="7.2" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <circle cx="42" cy="45.8" r="7.2" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <circle cx="22" cy="45.8" r="7.2" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <circle cx="15.8" cy="26.7" r="7.2" fill="none" stroke="${stroke}" stroke-width="2.6" />
+      `;
+      break;
+    case "mitsuboshi":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="2.8" />
+        <circle cx="32" cy="20" r="6.8" fill="${stroke}" />
+        <circle cx="21.5" cy="39" r="6.8" fill="${stroke}" />
+        <circle cx="42.5" cy="39" r="6.8" fill="${stroke}" />
+      `;
+      break;
+    case "futahiki":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="3.2" />
+        <rect x="12" y="20" width="40" height="8" rx="1.5" fill="${stroke}" />
+        <rect x="12" y="36" width="40" height="8" rx="1.5" fill="${stroke}" />
+      `;
+      break;
+    case "igeta":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <line x1="22" y1="14" x2="22" y2="50" stroke="${stroke}" stroke-width="4.4" />
+        <line x1="42" y1="14" x2="42" y2="50" stroke="${stroke}" stroke-width="4.4" />
+        <line x1="14" y1="22" x2="50" y2="22" stroke="${stroke}" stroke-width="4.4" />
+        <line x1="14" y1="42" x2="50" y2="42" stroke="${stroke}" stroke-width="4.4" />
+      `;
+      break;
+    case "katabami":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="2.4" />
+        <circle cx="32" cy="20" r="7.5" fill="${stroke}" />
+        <circle cx="21.5" cy="38" r="7.5" fill="${stroke}" />
+        <circle cx="42.5" cy="38" r="7.5" fill="${stroke}" />
+        <circle cx="32" cy="32" r="4.2" fill="var(--crest-bg, #221)" />
+      `;
+      break;
+    case "yotsume":
+      inner = `
+        <polygon points="32,10 42,20 32,30 22,20" fill="none" stroke="${stroke}" stroke-width="3.4" />
+        <polygon points="44,22 54,32 44,42 34,32" fill="none" stroke="${stroke}" stroke-width="3.4" />
+        <polygon points="32,34 42,44 32,54 22,44" fill="none" stroke="${stroke}" stroke-width="3.4" />
+        <polygon points="20,22 30,32 20,42 10,32" fill="none" stroke="${stroke}" stroke-width="3.4" />
+      `;
+      break;
+    case "takanoha":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="2.5" />
+        <path d="M18 46 L42 14 L48 18 L24 50 Z" fill="${stroke}" />
+        <path d="M46 46 L22 14 L16 18 L40 50 Z" fill="${stroke}" opacity="0.86" />
+        <line x1="21" y1="48" x2="45" y2="16" stroke="var(--crest-bg, #221)" stroke-width="1.6" />
+        <line x1="43" y1="48" x2="19" y2="16" stroke="var(--crest-bg, #221)" stroke-width="1.6" />
       `;
       break;
     default:
@@ -706,6 +831,8 @@ function swatchClassForLegend(entry) {
     case "gate": return "gate";
     case "slope": return "slope";
     case "urban": return "urban";
+    case "palisade": return "palisade";
+    case "earthwork": return "earthwork";
     default: break;
   }
   switch (entry.terrain) {
@@ -723,6 +850,16 @@ function swatchClassForLegend(entry) {
 function populateScenarioUi(scenario) {
   document.title = `${scenario.title} — 政宗の戦場 SRPG`;
 
+  if (startExtraBadge) {
+    if (scenario.extra) {
+      startExtraBadge.textContent = scenario.extra;
+      startExtraBadge.hidden = false;
+    } else {
+      startExtraBadge.textContent = "";
+      startExtraBadge.hidden = true;
+    }
+  }
+
   if (startEyebrow) {
     startEyebrow.textContent = [scenario.date, scenario.place].filter(Boolean).join(" ");
   }
@@ -733,6 +870,9 @@ function populateScenarioUi(scenario) {
     startArtWrap.className = "startArtWrap";
     if (scenario.keyart) {
       startArtWrap.classList.add("has-image");
+      if (scenario.theme === "mist") {
+        startArtWrap.classList.add("has-mist");
+      }
       if (startArtImg) {
         const resolvedArt = new URL(scenario.keyart, new URL(`./scenarios/${scenario.slug}.md`, appScriptUrl));
         startArtImg.src = resolvedArt.href;
@@ -798,6 +938,14 @@ function populateScenarioUi(scenario) {
         `<li><strong>${escapeHtml(scenario.rules.recordLabel)}:</strong> ${escapeHtml(recName)}が持ちこたえたターン数を結果に記録</li>`
       );
     }
+    const reinfUnits = scenario.units.filter((u) => (u.spawnTurn ?? 1) > 1);
+    if (reinfUnits.length > 0) {
+      const turns = [...new Set(reinfUnits.map((u) => u.spawnTurn))].sort((a, b) => a - b);
+      const turnText = turns.map((t) => `第${t}ターン`).join("・");
+      items.push(
+        `<li><strong>増援:</strong> ${escapeHtml(turnText)}の自軍フェイズ開始時に援軍（${reinfUnits.length}部隊）が到着</li>`
+      );
+    }
     items.push(
       `<li><strong>基本操作:</strong> 味方をタップ→「移動」で青マスへ移動／赤枠の敵をタップして「攻撃」／「ターン終了」で${escapeHtml(scenario.enemyArmy)}の行動</li>`
     );
@@ -861,6 +1009,7 @@ function resetBattleTracker() {
   battleTracker.recordEngagements = 0;
   battleTracker.lastProcessedEventSeq = -1;
   battleTracker.lastTurnLogged = 1;
+  battleTracker.spawnedTurns = new Set();
   battleTracker.logs = [];
   hideResultOverlay();
 
@@ -932,6 +1081,20 @@ function evaluateScenarioOutcome(current) {
     };
   }
 
+  // Defeat 2: Enemy captured designated defense objective (e.g., 本丸陥落)
+  if (Array.isArray(rules.enemyCaptureTiles) && rules.enemyCaptureTiles.length > 0) {
+    const enemyCaptured = enemiesAlive.some((e) =>
+      rules.enemyCaptureTiles.some((pt) => pt.x === e.x && pt.y === e.y)
+    );
+    if (enemyCaptured) {
+      return {
+        victory: false,
+        reason: "captured",
+        ...(rules.outcomes.captured || rules.outcomes.defeat),
+      };
+    }
+  }
+
   // Victory 1: Escape unit reached an escape tile
   if (rules.escapeUnitTag) {
     const escUnit = current.units.find((u) => u.tag === rules.escapeUnitTag && u.hp > 0);
@@ -944,6 +1107,20 @@ function evaluateScenarioOutcome(current) {
           ...rules.outcomes.escape,
         };
       }
+    }
+  }
+
+  // Victory 1b: Player captured designated objective tile (e.g., 本丸・真田丸制圧)
+  if (Array.isArray(rules.playerCaptureTiles) && rules.playerCaptureTiles.length > 0) {
+    const playerCaptured = playersAlive.some((p) =>
+      rules.playerCaptureTiles.some((pt) => pt.x === p.x && pt.y === p.y)
+    );
+    if (playerCaptured) {
+      return {
+        victory: true,
+        reason: "capture",
+        ...(rules.outcomes.capture || rules.outcomes.leaderDefeated),
+      };
     }
   }
 
@@ -1009,6 +1186,9 @@ function triggerResolution(outcome, current) {
   const rules = activeScenario?.rules;
   const maxTurnCap = rules?.surviveTurns > 0 ? rules.surviveTurns : rules?.maxTurns || current.turnNumber;
 
+  if (outcome.reason === "survive" && rules?.surviveLog) {
+    addBattleLog(rules.surviveLog, "highlight", Math.min(current.turnNumber, maxTurnCap));
+  }
   addBattleLog(`【決着】${outcome.title}`, "highlight", Math.min(current.turnNumber, maxTurnCap));
   soundPlay(outcome.victory ? "victory" : "defeatEnd");
 
@@ -1054,6 +1234,8 @@ function triggerResolution(outcome, current) {
       resRecordLabel.textContent = "決着要因";
       const reasonMap = {
         escape: `${rules?.escapeDestName || "目標"}へ到達`,
+        capture: `${rules?.captureLabel || "本丸"}制圧`,
+        captured: `${rules?.captureLabel || "本丸"}陥落`,
         survive: "規定ターン防衛",
         leader_defeated: "敵大将撃破",
         rout: "敵軍撃退",
@@ -2226,6 +2408,123 @@ function runLocalEnemyTurn() {
   state.turnEvents = events;
 }
 
+function findNearestOpenTileLocal(startX, startY, current) {
+  const w = current.map.width;
+  const h = current.map.height;
+  const sx = Math.max(0, Math.min(w - 1, startX));
+  const sy = Math.max(0, Math.min(h - 1, startY));
+  const queue = [{ x: sx, y: sy }];
+  const visited = new Set([`${sx},${sy}`]);
+  const dirs = [
+    [0, -1],
+    [-1, 0],
+    [0, 1],
+    [1, 0],
+  ];
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    const tile = tileAt(current.map, cur.x, cur.y);
+    if (tile && tile.terrain !== "Water" && !unitAt(current.units, cur.x, cur.y)) {
+      return cur;
+    }
+    for (const [dx, dy] of dirs) {
+      const nx = cur.x + dx;
+      const ny = cur.y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const key = `${nx},${ny}`;
+      if (!visited.has(key)) {
+        visited.add(key);
+        queue.push({ x: nx, y: ny });
+      }
+    }
+  }
+  return null;
+}
+
+function spawnReinforcementsForTurn(turn) {
+  if (!activeScenario || !Array.isArray(activeScenario.units)) return false;
+  if (battleTracker.spawnedTurns.has(turn)) return false;
+
+  const wave = activeScenario.units.filter((u) => (u.spawnTurn ?? 1) === turn);
+  if (wave.length === 0) return false;
+  battleTracker.spawnedTurns.add(turn);
+
+  let spawnedUnits = [];
+  if (
+    bridge.useWasm &&
+    bridge.instance &&
+    typeof bridge.instance.spawn_units_json === "function" &&
+    window.srpgScenarioParser?.toWasmReinforcementsJson
+  ) {
+    const json = window.srpgScenarioParser.toWasmReinforcementsJson(activeScenario, turn);
+    const count = bridge.instance.spawn_units_json(json);
+    if (count > 0) {
+      const updated = getCurrentState();
+      const waveIds = new Set(wave.map((u) => u.id));
+      spawnedUnits = updated.units.filter((u) => waveIds.has(u.id));
+    }
+  } else {
+    for (const u of wave) {
+      if (state.units.some((existing) => existing.id === u.id)) continue;
+      const spot = findNearestOpenTileLocal(u.x, u.y, state);
+      if (!spot) continue;
+      const created = {
+        id: u.id,
+        clan: u.clan,
+        job: u.job,
+        x: spot.x,
+        y: spot.y,
+        color: u.team === "enemy" ? COLORS.enemy : COLORS.player,
+        team: u.team,
+        mov: u.mov,
+        range: u.range,
+        hp: u.hp,
+        maxHp: u.maxHp,
+        atk: u.atk,
+        moved: false,
+        acted: false,
+        leader: Boolean(u.leader),
+        name: u.name,
+        role: u.role,
+        tag: u.tag,
+        aiRole: u.aiRole,
+        basis: u.basis,
+        note: u.note,
+        stats: u.stats ? { ...u.stats } : { valor: 70, intellect: 60, leadership: 65 },
+      };
+      state.units.push(created);
+      spawnedUnits.push(created);
+    }
+  }
+
+  if (spawnedUnits.length === 0) return false;
+
+  const reinfLogs = activeScenario.rules?.reinforcementLogs || {};
+  const customLog = reinfLogs[String(turn)] || reinfLogs["*"] || "";
+  const leadUnit = spawnedUnits[0];
+  const logText =
+    customLog ||
+    `増援到着！ ${unitDisplayName(leadUnit)}${spawnedUnits.length > 1 ? `ほか${spawnedUnits.length}部隊` : ""}が戦場へ加わった。`;
+  addBattleLog(logText, "highlight", turn);
+
+  const cur = getCurrentState();
+  for (const su of spawnedUnits) {
+    const t = tileAt(cur.map, su.x, su.y);
+    if (t) {
+      const pos = tileToScreen(t, cur);
+      const cx = pos.x + pos.size * 0.5;
+      const cy = pos.y + (cur.viewMode === "topdown" ? pos.size * 0.3 : pos.size * 0.1);
+      spawnParticles(cx, cy, "#f4c661", 14);
+      spawnFloatingText(cx, cy - 16, "援軍到着！", "#fef08a", 1.05);
+    }
+  }
+
+  showPhaseBanner(`第${turn}ターン — 援軍到着！`, logText, false, 1550);
+  soundPlay("cutin");
+  lastHudSignature = "";
+  return true;
+}
+
 function runTurnEnd() {
   if (battleTracker.resolved) return;
   if (playback.active) {
@@ -2259,15 +2558,18 @@ function runTurnEnd() {
         : rules?.maxTurns > 0
           ? `第${after.turnNumber} / ${rules.maxTurns} ターン`
           : `${playerArmy}フェイズ`;
-    showPhaseBanner(`第${after.turnNumber}ターン — ${playerArmy}`, sub, false, 1100);
-    soundPlay("turnStart", true);
     addBattleLog(`敵フェイズ終了。第${after.turnNumber}ターン ${playerArmy}の行動。`, "system", after.turnNumber);
+    const spawnedReinforcements = spawnReinforcementsForTurn(after.turnNumber);
+    if (!spawnedReinforcements) {
+      showPhaseBanner(`第${after.turnNumber}ターン — ${playerArmy}`, sub, false, 1100);
+      soundPlay("turnStart", true);
+    }
     if (autoState.cancelPending) {
       autoState.cancelPending = false;
       addBattleLog("手動操作へ切り替わりました。", "system", after.turnNumber);
       lastHudSignature = "";
     } else if (autoState.enabled && uiState.started && !battleTracker.resolved) {
-      startAutoPlayerTurn(620);
+      startAutoPlayerTurn(spawnedReinforcements ? 950 : 620);
     }
     safeRender();
   };
@@ -2954,6 +3256,10 @@ function drawBackdrop(width, height) {
     grad.addColorStop(0, "#24161e");
     grad.addColorStop(0.45, "#19121b");
     grad.addColorStop(1, "#0b0d14");
+  } else if (theme === "mist") {
+    grad.addColorStop(0, "#212e3d");
+    grad.addColorStop(0.48, "#192430");
+    grad.addColorStop(1, "#0f1720");
   } else {
     grad.addColorStop(0, "#142030");
     grad.addColorStop(0.45, "#111b27");
@@ -2963,7 +3269,12 @@ function drawBackdrop(width, height) {
   ctx.fillRect(0, 0, width, height);
 
   ctx.save();
-  ctx.fillStyle = theme === "winter" ? "rgba(148, 178, 208, 0.16)" : "rgba(38, 56, 76, 0.28)";
+  ctx.fillStyle =
+    theme === "winter"
+      ? "rgba(148, 178, 208, 0.16)"
+      : theme === "mist"
+        ? "rgba(203, 219, 235, 0.16)"
+        : "rgba(38, 56, 76, 0.28)";
   ctx.beginPath();
   ctx.moveTo(0, height * 0.24);
   ctx.lineTo(width * 0.14, height * 0.12);
@@ -3279,6 +3590,38 @@ function drawIsoTerrainDetail(tile, polygon, pos, zoom, now) {
       ctx.lineTo(cx - gw * 0.52, cy - gh * 1.9);
       ctx.closePath();
       ctx.fill();
+    } else if (vis === "palisade") {
+      // Palisade outwork / Sanadamaru rampart (柵・出丸)
+      const pw = 22 * zoom;
+      const ph = 10 * zoom;
+      ctx.fillStyle = "#6c4829";
+      ctx.fillRect(cx - pw * 0.5, cy - ph * 0.85, pw, ph * 0.85);
+      ctx.strokeStyle = "#2f1e11";
+      ctx.lineWidth = Math.max(1, 1 * zoom);
+      for (let i = -2; i <= 2; i += 1) {
+        const px = cx + i * (pw * 0.2);
+        ctx.beginPath();
+        ctx.moveTo(px, cy);
+        ctx.lineTo(px, cy - ph * 1.25);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#b91c1c";
+      ctx.fillRect(cx - pw * 0.42, cy - ph * 1.15, pw * 0.84, ph * 0.28);
+    } else if (vis === "earthwork") {
+      // Field earthwork & stockade (付城・土塁)
+      const ew = 20 * zoom;
+      const eh = 8 * zoom;
+      ctx.fillStyle = "#786248";
+      ctx.beginPath();
+      ctx.moveTo(cx - ew * 0.56, cy);
+      ctx.lineTo(cx - ew * 0.36, cy - eh);
+      ctx.lineTo(cx + ew * 0.36, cy - eh);
+      ctx.lineTo(cx + ew * 0.56, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#4b3828";
+      ctx.lineWidth = Math.max(1, 1.1 * zoom);
+      ctx.stroke();
     } else if (vis === "fort") {
       // Compact wooden/snow hill fort (小城・山城砦)
       const fw = 16 * zoom;
@@ -3488,6 +3831,42 @@ function drawIsoTerrainDetail(tile, polygon, pos, zoom, now) {
     ctx.fillText(badgeText, cx, cy - 1.5 * zoom);
     ctx.restore();
   }
+
+  const pCap = activeScenario?.rules?.playerCaptureTiles ?? [];
+  const eCap = activeScenario?.rules?.enemyCaptureTiles ?? [];
+  const isPlayerCap = pCap.some((pt) => pt.x === tile.x && pt.y === tile.y);
+  const isEnemyCap = eCap.some((pt) => pt.x === tile.x && pt.y === tile.y);
+  if (isPlayerCap || isEnemyCap) {
+    const pulse = 0.55 + 0.45 * Math.sin(now * 0.0045);
+    const label = activeScenario?.rules?.captureLabel || "本丸";
+    const shortLabel = label.length > 5 ? label.slice(-2) : label;
+    const strokeRgb = isEnemyCap ? "96, 165, 250" : "250, 204, 21";
+    const textColor = isEnemyCap ? "#bfdbfe" : "#fef08a";
+    ctx.save();
+    ctx.strokeStyle = `rgba(${strokeRgb}, ${0.55 + 0.38 * pulse})`;
+    ctx.lineWidth = Math.max(1.5, 2.2 * zoom);
+    ctx.beginPath();
+    ctx.moveTo(polygon[0].x, polygon[0].y);
+    for (let i = 1; i < 4; i += 1) ctx.lineTo(polygon[i].x, polygon[i].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    const tagW = Math.max(32, shortLabel.length * 12) * zoom;
+    const tagH = 14 * zoom;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.86)";
+    ctx.strokeStyle = `rgba(${strokeRgb}, 0.92)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    roundedRectPath(cx - tagW / 2, cy - tagH / 2 - 22 * zoom, tagW, tagH, 4 * zoom);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = textColor;
+    ctx.font = `700 ${Math.max(8, 9 * zoom)}px "GenInterfaceJP", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(shortLabel, cx, cy - 21.5 * zoom);
+    ctx.restore();
+  }
 }
 
 function drawIsoTile(tile, pos, current, overlays, now) {
@@ -3636,6 +4015,16 @@ function drawTopDownTile(tile, pos, current, overlays, now) {
       ctx.fillRect(pos.x + size * 0.14, pos.y + size * 0.3, size * 0.72, size * 0.4);
       ctx.fillStyle = "#e8e3d5";
       ctx.fillRect(pos.x + size * 0.24, pos.y + size * 0.36, size * 0.52, size * 0.28);
+    } else if (vis === "palisade") {
+      ctx.fillStyle = "#6c4829";
+      ctx.fillRect(pos.x + size * 0.14, pos.y + size * 0.22, size * 0.72, size * 0.56);
+      ctx.fillStyle = "#b91c1c";
+      ctx.fillRect(pos.x + size * 0.22, pos.y + size * 0.32, size * 0.56, size * 0.36);
+    } else if (vis === "earthwork") {
+      ctx.fillStyle = "#786248";
+      ctx.fillRect(pos.x + size * 0.18, pos.y + size * 0.24, size * 0.64, size * 0.52);
+      ctx.fillStyle = "#5c4934";
+      ctx.fillRect(pos.x + size * 0.28, pos.y + size * 0.34, size * 0.44, size * 0.32);
     } else if (vis === "fort") {
       ctx.fillStyle = "#6e553b";
       ctx.fillRect(pos.x + size * 0.22, pos.y + size * 0.22, size * 0.56, size * 0.56);
@@ -3676,6 +4065,23 @@ function drawTopDownTile(tile, pos, current, overlays, now) {
     ctx.font = `700 ${Math.max(8, 10 * zoom)}px "GenInterfaceJP", sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(badgeText, pos.x + size / 2, pos.y + 13 * zoom);
+    ctx.lineWidth = 1;
+  }
+
+  const pCap2d = activeScenario?.rules?.playerCaptureTiles ?? [];
+  const eCap2d = activeScenario?.rules?.enemyCaptureTiles ?? [];
+  const isPlayerCap2d = pCap2d.some((pt) => pt.x === tile.x && pt.y === tile.y);
+  const isEnemyCap2d = eCap2d.some((pt) => pt.x === tile.x && pt.y === tile.y);
+  if (isPlayerCap2d || isEnemyCap2d) {
+    const label = activeScenario?.rules?.captureLabel || "本丸";
+    const shortLabel = label.length > 5 ? label.slice(-2) : label;
+    ctx.strokeStyle = isEnemyCap2d ? "#60a5fa" : "#facc15";
+    ctx.lineWidth = Math.max(2, 2.4 * zoom);
+    ctx.strokeRect(pos.x + 2, pos.y + 2, size - 4, size - 4);
+    ctx.fillStyle = isEnemyCap2d ? "#bfdbfe" : "#fef08a";
+    ctx.font = `700 ${Math.max(8, 9.5 * zoom)}px "GenInterfaceJP", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(shortLabel, pos.x + size / 2, pos.y + 13 * zoom);
     ctx.lineWidth = 1;
   }
 
@@ -4144,6 +4550,26 @@ function render(now = performance.now()) {
       const r = 1.1 + (i % 3) * 0.65;
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Subtle ambient morning mist for misty scenarios (e.g., Domyoji — visual only)
+  if (activeScenario?.theme === "mist") {
+    ctx.save();
+    for (let i = 0; i < 5; i += 1) {
+      const drift = ((now * (0.009 + i * 0.0025) + i * 240) % (width + 420)) - 210;
+      const my = height * (0.16 + i * 0.17) + Math.sin(now * 0.00055 + i * 1.4) * 14;
+      const rx = 180 + (i % 3) * 65;
+      const ry = 38 + (i % 2) * 18;
+      const mistGrad = ctx.createRadialGradient(drift, my, ry * 0.1, drift, my, rx);
+      mistGrad.addColorStop(0, "rgba(226, 238, 248, 0.13)");
+      mistGrad.addColorStop(0.55, "rgba(206, 224, 240, 0.06)");
+      mistGrad.addColorStop(1, "rgba(206, 224, 240, 0)");
+      ctx.fillStyle = mistGrad;
+      ctx.beginPath();
+      ctx.ellipse(drift, my, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();

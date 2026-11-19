@@ -1,6 +1,6 @@
 ---
 slug: kasai-osaki
-order: 4
+order: 6
 year: 1590
 title: 葛西・大崎一揆
 keyart: ../assets/kasai-osaki-keyart.webp

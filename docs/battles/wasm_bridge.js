@@ -45,6 +45,22 @@ async function loadWasm() {
       }
       return true;
     },
+    spawn_units_json(jsonString) {
+      if (
+        typeof exports.srpg_input_ptr !== "function" ||
+        typeof exports.srpg_spawn_units_json !== "function"
+      ) {
+        throw new Error("WASM does not export srpg_spawn_units_json");
+      }
+      const payload = encoder.encode(String(jsonString ?? "[]"));
+      const ptr = exports.srpg_input_ptr(payload.length);
+      new Uint8Array(exports.memory.buffer, ptr, payload.length).set(payload);
+      const rc = exports.srpg_spawn_units_json(payload.length);
+      if (rc < 0) {
+        throw new Error(`srpg_spawn_units_json failed (code=${rc})`);
+      }
+      return rc;
+    },
     click_tile(x, y) {
       exports.srpg_click_tile(x | 0, y | 0);
     },

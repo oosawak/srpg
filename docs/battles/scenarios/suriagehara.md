@@ -1,6 +1,6 @@
 ---
 slug: suriagehara
-order: 3
+order: 4
 year: 1589
 title: 摺上原の戦い
 keyart: ../assets/suriagehara-keyart.webp

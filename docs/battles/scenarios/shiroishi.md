@@ -1,6 +1,6 @@
 ---
 slug: shiroishi
-order: 5
+order: 7
 year: 1600
 title: 白石城と関ヶ原
 keyart: ../assets/shiroishi-keyart.webp
