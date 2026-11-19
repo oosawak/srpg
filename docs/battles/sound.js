@@ -197,6 +197,14 @@
       playTone({ freq: 659.25, type: "triangle", duration: 0.16, gain: 0.16, delay: 0.07 });
       playTone({ freq: 880.0, type: "sine", duration: 0.26, gain: 0.18, delay: 0.14 });
     },
+    cutin() {
+      // Dramatic Sengoku ability cut-in: taiko + blade whoosh + rising koto chime
+      playTone({ freq: 145, endFreq: 62, type: "sine", duration: 0.26, gain: 0.34, delay: 0 });
+      playNoise({ duration: 0.15, gain: 0.18, filterFreq: 2600, filterType: "bandpass", delay: 0.01 });
+      playTone({ freq: 587.33, type: "triangle", duration: 0.18, gain: 0.18, delay: 0.03 });
+      playTone({ freq: 659.25, type: "triangle", duration: 0.2, gain: 0.18, delay: 0.08 });
+      playTone({ freq: 880.0, type: "sine", duration: 0.32, gain: 0.22, delay: 0.13 });
+    },
     turnStart(isPlayer = true) {
       if (isPlayer) {
         // Rising taiko + horn

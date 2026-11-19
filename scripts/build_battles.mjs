@@ -105,23 +105,34 @@ function renderBattlePageHtml(sc) {
 
           <div class="unitCard unitCardOverlay" id="playerUnitCardOverlay" hidden>
             <h3 class="unitCardHeader">
-              <span>自軍・地形情報</span>
+              <span>操作・地形情報</span>
               <button id="unitPanelClose" class="unitPanelClose" type="button" aria-label="情報ウィンドウを閉じる">✕</button>
             </h3>
             <div id="unitInfo" class="unitInfo">ユニットをクリックしてください</div>
             <div id="unitActions" class="unitActions"></div>
           </div>
 
-          <div class="unitCard enemyCardOverlay" id="enemyUnitCardOverlay" hidden>
-            <h3 class="unitCardHeader">
-              <span>敵軍ユニット</span>
-              <button id="enemyUnitPanelClose" class="unitPanelClose" type="button" aria-label="敵ユニット情報を閉じる">✕</button>
-            </h3>
-            <div id="enemyUnitInfo" class="unitInfo"></div>
-            <div id="enemyUnitActions" class="unitActions"></div>
-          </div>
+          <aside class="unitCard faceCardOverlay" id="unitFaceCard" hidden aria-label="武将・部隊カード">
+            <div class="unitCardHeader faceCardHeader">
+              <span id="faceCardFaction" class="faceCardFaction">武将情報</span>
+              <button id="faceCardClose" class="unitPanelClose" type="button" aria-label="顔カードを閉じる">✕</button>
+            </div>
+            <div id="faceCardBody" class="faceCardBody"></div>
+            <div id="faceCardActions" class="unitActions"></div>
+          </aside>
 
           <div id="attackFxOverlay" class="attackFxOverlay" hidden></div>
+
+          <div id="abilityCutinOverlay" class="abilityCutinOverlay" hidden role="status" aria-live="polite" title="タップ／クリックでスキップ">
+            <div class="abilityCutinBand">
+              <div id="abilityCutinPortrait" class="abilityCutinPortrait"></div>
+              <div class="abilityCutinText">
+                <div id="abilityCutinSub" class="abilityCutinSub"></div>
+                <div id="abilityCutinName" class="abilityCutinName"></div>
+                <div class="abilityCutinHint">タップ／クリックでスキップ</div>
+              </div>
+            </div>
+          </div>
 
           <div class="unitCard abilityCardOverlay" id="abilityCardOverlay">
             <h3 class="unitCardHeader">
@@ -194,8 +205,8 @@ function renderBattlePageHtml(sc) {
     <!-- 開始画面オーバーレイ -->
     <div id="startOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
       <div class="startCard">
-        <div id="startArtWrap" class="startArtWrap theme-banner theme-${escapeHtml(sc.theme || "autumn")}">
-          <img id="startArtImg" class="startArt" width="800" height="533" hidden alt="" />
+        <div id="startArtWrap" class="startArtWrap ${sc.keyart ? "has-image" : `theme-banner theme-${escapeHtml(sc.theme || "autumn")}`}">
+          <img id="startArtImg" class="startArt" width="800" height="533"${sc.keyart ? ` src="${escapeHtml(sc.keyart)}" alt="${escapeHtml(sc.title)} キーアート"` : ` hidden alt=""`} />
           <div id="startArtEmblem" class="startArtEmblem" aria-hidden="true">${escapeHtml(sc.year ? String(sc.year) : "")}</div>
           <div class="startArtScrim"></div>
           <div class="startArtCaption">

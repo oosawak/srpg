@@ -21,12 +21,12 @@
   };
 
   const JOB_DEFAULTS = {
-    Ashigaru: { hp: 100, atk: 14, mov: 4, range: 1 },
-    Yari: { hp: 110, atk: 15, mov: 3, range: 1 },
-    Yumi: { hp: 80, atk: 13, mov: 3, range: 3 },
-    Teppo: { hp: 78, atk: 15, mov: 3, range: 2 },
-    Ninja: { hp: 75, atk: 13, mov: 4, range: 1 },
-    Strategist: { hp: 95, atk: 14, mov: 3, range: 1 },
+    Ashigaru: { hp: 100, atk: 14, mov: 4, range: 1, valor: 70, intellect: 58, leadership: 65 },
+    Yari: { hp: 110, atk: 15, mov: 3, range: 1, valor: 72, intellect: 60, leadership: 68 },
+    Yumi: { hp: 80, atk: 13, mov: 3, range: 3, valor: 68, intellect: 64, leadership: 64 },
+    Teppo: { hp: 78, atk: 15, mov: 3, range: 2, valor: 74, intellect: 64, leadership: 66 },
+    Ninja: { hp: 75, atk: 13, mov: 4, range: 1, valor: 70, intellect: 74, leadership: 60 },
+    Strategist: { hp: 95, atk: 14, mov: 3, range: 1, valor: 72, intellect: 78, leadership: 78 },
   };
 
   const BASIS_MAP = {
@@ -355,6 +355,7 @@
       const symbol = stripCodeTicks(row["記号"] ?? row["symbol"] ?? "");
       if (!symbol) continue;
       const terrain = normalizeTerrain(row["地形"] ?? row["terrain"] ?? "Plain");
+      const visual = stripCodeTicks(row["表現"] ?? row["visual"] ?? row["style"] ?? "").toLowerCase();
       const entry = {
         symbol,
         terrain,
@@ -363,6 +364,7 @@
         water: parseBool(row["水地"] ?? row["water"], terrain === "Water" || terrain === "RiceField"),
         bridge: parseBool(row["橋"] ?? row["bridge"], false),
         escape: parseBool(row["離脱"] ?? row["escape"], false),
+        visual,
         label: String(row["表示名"] ?? row["説明"] ?? row["label"] ?? terrain).trim(),
       };
       legendBySymbol.set(symbol, entry);
@@ -389,11 +391,14 @@
           water: def.water,
           bridge: def.bridge,
           escape: def.escape,
+          visual: def.visual || "",
+          label: def.label || "",
         });
       }
     }
 
     // Units table
+    const clampStat = (val, fallback) => Math.max(0, Math.min(100, parseIntSafe(val, fallback)));
     const unitRows = parseMarkdownTable(sections["ユニット"] || sections["ユニット表"] || "");
     const units = [];
     for (let i = 0; i < unitRows.length; i += 1) {
@@ -420,6 +425,9 @@
       const aiRole = normalizeAiRole(row["AI指針"] ?? row["ai_role"] ?? "", team);
       const basis = normalizeBasis(row["種別"] ?? row["basis"] ?? "fiction");
       const note = String(row["史実注記"] ?? row["注記"] ?? row["note"] ?? "").trim();
+      const valor = clampStat(row["武力"] ?? row["valor"] ?? row["might"], defaults.valor);
+      const intellect = clampStat(row["知力"] ?? row["intellect"], defaults.intellect);
+      const leadership = clampStat(row["統率"] ?? row["leadership"], defaults.leadership);
 
       units.push({
         id,
@@ -440,6 +448,11 @@
         aiRole,
         basis,
         note,
+        stats: {
+          valor,
+          intellect,
+          leadership,
+        },
       });
     }
 

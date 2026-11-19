@@ -42,12 +42,17 @@ const panelBookLink = rootQuery("#panelBookLink");
 
 const abilityList = rootQuery("#abilityList");
 const unitInfo = rootQuery("#unitInfo");
-const enemyUnitInfo = rootQuery("#enemyUnitInfo");
-const enemyUnitCardOverlay = rootQuery("#enemyUnitCardOverlay");
-const enemyUnitActions = rootQuery("#enemyUnitActions");
-const enemyUnitPanelClose = rootQuery("#enemyUnitPanelClose");
 const unitActions = rootQuery("#unitActions");
 const unitCardOverlay = rootQuery("#playerUnitCardOverlay") ?? rootQuery(".unitCardOverlay");
+const unitFaceCard = rootQuery("#unitFaceCard");
+const faceCardFaction = rootQuery("#faceCardFaction");
+const faceCardBody = rootQuery("#faceCardBody");
+const faceCardActions = rootQuery("#faceCardActions");
+const faceCardClose = rootQuery("#faceCardClose");
+const abilityCutinOverlay = rootQuery("#abilityCutinOverlay");
+const abilityCutinPortrait = rootQuery("#abilityCutinPortrait");
+const abilityCutinSub = rootQuery("#abilityCutinSub");
+const abilityCutinName = rootQuery("#abilityCutinName");
 const attackFxOverlay = rootQuery("#attackFxOverlay");
 const unitPanelClose = rootQuery("#unitPanelClose");
 const bootStatus = rootQuery("#bootStatus");
@@ -173,13 +178,21 @@ const uiState = {
   zoom: loadSavedZoom(),
   userAdjustedZoom: false,
   unitPanelHidden: false,
-  enemyPanelHidden: true,
+  faceCardUnitId: null,
+  faceCardHidden: false,
   attackFx: null,
   phaseBannerTimer: 0,
   resultCutinTimer: 0,
   shareToastTimer: 0,
   lastEnemyClickId: null,
   lastEnemyClickAt: 0,
+};
+
+const cutinState = {
+  active: false,
+  timerId: 0,
+  onDone: null,
+  isAuto: false,
 };
 
 const battleTracker = {
@@ -276,6 +289,7 @@ function buildLocalStateFromScenario(scenario) {
     aiRole: u.aiRole,
     basis: u.basis,
     note: u.note,
+    stats: u.stats ? { ...u.stats } : { valor: 70, intellect: 60, leadership: 65 },
   }));
   const firstPlayer =
     units.find((u) => u.team === "player" && u.leader) ??
@@ -405,11 +419,295 @@ function escapeHtml(str) {
 }
 
 // =========================================================
+// General Portraits (assets/faces/<tag>.webp) & Crest Cards
+// =========================================================
+const FACE_PORTRAIT_TAGS = new Set([
+  "masamune",
+  "kagetsuna",
+  "yoshiaki",
+  "tsunamoto",
+  "yoshihiro",
+  "kanagami",
+  "sase",
+  "morikuni",
+]);
+
+// 6 named generals without face images -> geometric family-crest cards
+const CREST_CARD_GENERALS = {
+  oniwa: {
+    crestName: "三つ鱗紋",
+    motif: "uroko",
+    bg: "#2b2110",
+    accent: "#f4c661",
+  },
+  shigezane: {
+    crestName: "九曜紋",
+    motif: "kuyo",
+    bg: "#10223e",
+    accent: "#93c5fd",
+  },
+  satake: {
+    crestName: "五本骨扇",
+    motif: "ogi",
+    bg: "#3b1218",
+    accent: "#fca5a5",
+  },
+  masakage: {
+    crestName: "竪三引両",
+    motif: "mitsuhiki",
+    bg: "#132642",
+    accent: "#f4c661",
+  },
+  hidemune: {
+    crestName: "宇和島九曜",
+    motif: "kuyo_ring",
+    bg: "#0e2438",
+    accent: "#7dd3fc",
+  },
+  munezane: {
+    crestName: "丸に割菱",
+    motif: "hishi",
+    bg: "#172940",
+    accent: "#fde047",
+  },
+};
+
+function isNamedGeneral(unit) {
+  if (!unit || !unit.tag) return false;
+  return FACE_PORTRAIT_TAGS.has(unit.tag) || Object.prototype.hasOwnProperty.call(CREST_CARD_GENERALS, unit.tag);
+}
+
+function faceImageUrl(tag) {
+  return new URL(`./assets/faces/${tag}.webp`, appScriptUrl).href;
+}
+
+function renderCrestSvg(motif, accent = "#f4c661") {
+  const stroke = escapeHtml(accent);
+  let inner = "";
+  switch (motif) {
+    case "uroko":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <polygon points="32,12 42,29 22,29" fill="${stroke}" />
+        <polygon points="22,31 32,48 12,48" fill="${stroke}" />
+        <polygon points="42,31 52,48 32,48" fill="${stroke}" />
+      `;
+      break;
+    case "kuyo":
+      inner = `
+        <circle cx="32" cy="32" r="9.5" fill="${stroke}" />
+        <circle cx="32" cy="13" r="4.6" fill="${stroke}" />
+        <circle cx="45.4" cy="18.6" r="4.6" fill="${stroke}" />
+        <circle cx="51" cy="32" r="4.6" fill="${stroke}" />
+        <circle cx="45.4" cy="45.4" r="4.6" fill="${stroke}" />
+        <circle cx="32" cy="51" r="4.6" fill="${stroke}" />
+        <circle cx="18.6" cy="45.4" r="4.6" fill="${stroke}" />
+        <circle cx="13" cy="32" r="4.6" fill="${stroke}" />
+        <circle cx="18.6" cy="18.6" r="4.6" fill="${stroke}" />
+      `;
+      break;
+    case "kuyo_ring":
+      inner = `
+        <circle cx="32" cy="32" r="27" fill="none" stroke="${stroke}" stroke-width="2.2" />
+        <circle cx="32" cy="32" r="8" fill="${stroke}" />
+        <circle cx="32" cy="15.5" r="3.8" fill="${stroke}" />
+        <circle cx="43.7" cy="20.3" r="3.8" fill="${stroke}" />
+        <circle cx="48.5" cy="32" r="3.8" fill="${stroke}" />
+        <circle cx="43.7" cy="43.7" r="3.8" fill="${stroke}" />
+        <circle cx="32" cy="48.5" r="3.8" fill="${stroke}" />
+        <circle cx="20.3" cy="43.7" r="3.8" fill="${stroke}" />
+        <circle cx="15.5" cy="32" r="3.8" fill="${stroke}" />
+        <circle cx="20.3" cy="20.3" r="3.8" fill="${stroke}" />
+      `;
+      break;
+    case "ogi":
+      inner = `
+        <circle cx="32" cy="32" r="27" fill="none" stroke="${stroke}" stroke-width="2.2" opacity="0.65" />
+        <path d="M32 50 L11 24 A28 28 0 0 1 53 24 Z" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <line x1="32" y1="50" x2="21" y2="17" stroke="${stroke}" stroke-width="1.6" />
+        <line x1="32" y1="50" x2="32" y2="14" stroke="${stroke}" stroke-width="1.6" />
+        <line x1="32" y1="50" x2="43" y2="17" stroke="${stroke}" stroke-width="1.6" />
+        <circle cx="32" cy="26" r="6.2" fill="${stroke}" />
+      `;
+      break;
+    case "mitsuhiki":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="3.2" />
+        <rect x="17" y="13" width="6.5" height="38" rx="1.5" fill="${stroke}" />
+        <rect x="28.75" y="10" width="6.5" height="44" rx="1.5" fill="${stroke}" />
+        <rect x="40.5" y="13" width="6.5" height="38" rx="1.5" fill="${stroke}" />
+      `;
+      break;
+    case "hishi":
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="2.8" />
+        <polygon points="32,12 48,32 32,52 16,32" fill="none" stroke="${stroke}" stroke-width="2.4" />
+        <polygon points="32,18 42,30 32,30 22,30" fill="${stroke}" />
+        <polygon points="32,46 42,34 32,34 22,34" fill="${stroke}" />
+      `;
+      break;
+    default:
+      inner = `
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${stroke}" stroke-width="2.6" />
+        <path d="M38 16 A16 16 0 1 0 38 48 A12 12 0 1 1 38 16 Z" fill="${stroke}" />
+      `;
+      break;
+  }
+  return `<svg class="crestSvg" viewBox="0 0 64 64" aria-hidden="true">${inner}</svg>`;
+}
+
+function renderCrestCardHtml(unit, sizeClass = "card") {
+  const isEnemy = unit.team === "enemy";
+  const meta = CREST_CARD_GENERALS[unit.tag] || {
+    crestName: isEnemy ? "軍紋" : "伊達紋",
+    motif: "default",
+    bg: isEnemy ? "#361218" : "#12243e",
+    accent: isEnemy ? "#fca5a5" : "#f4c661",
+  };
+  return `
+    <div class="portraitBox portrait-crest ${sizeClass}" style="--crest-bg:${meta.bg};--crest-accent:${meta.accent}" title="${escapeHtml(meta.crestName)}">
+      ${renderCrestSvg(meta.motif, meta.accent)}
+      <span class="crestCardName">${escapeHtml(unitDisplayName(unit))}</span>
+    </div>
+  `;
+}
+
+function renderPortraitHtml(unit, sizeClass = "card") {
+  if (!isNamedGeneral(unit)) return "";
+  if (FACE_PORTRAIT_TAGS.has(unit.tag)) {
+    return `
+      <div class="portraitBox portrait-photo ${sizeClass}">
+        <img
+          src="${escapeHtml(faceImageUrl(unit.tag))}"
+          alt="${escapeHtml(unitDisplayName(unit))}"
+          loading="eager"
+          decoding="async"
+          data-fallback-unit-id="${unit.id}"
+        />
+      </div>
+    `;
+  }
+  return renderCrestCardHtml(unit, sizeClass);
+}
+
+function attachPortraitFallbacks(container, unit, sizeClass = "card") {
+  if (!container || !unit) return;
+  const img = container.querySelector("img[data-fallback-unit-id]");
+  if (!img) return;
+  img.addEventListener(
+    "error",
+    () => {
+      const box = img.closest(".portraitBox");
+      if (!box) return;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = renderCrestCardHtml(unit, sizeClass);
+      if (tmp.firstElementChild) {
+        box.replaceWith(tmp.firstElementChild);
+      }
+    },
+    { once: true }
+  );
+}
+
+// =========================================================
+// Ability Cut-in Overlay (skippable on click/tap/Esc)
+// =========================================================
+function dismissAbilityCutin(runCallback = true) {
+  if (cutinState.timerId) {
+    window.clearTimeout(cutinState.timerId);
+    cutinState.timerId = 0;
+  }
+  const cb = cutinState.onDone;
+  cutinState.active = false;
+  cutinState.onDone = null;
+  cutinState.isAuto = false;
+  if (abilityCutinOverlay) {
+    abilityCutinOverlay.hidden = true;
+    abilityCutinOverlay.classList.remove("is-auto", "is-enemy");
+  }
+  if (runCallback && typeof cb === "function") {
+    cb();
+  }
+}
+
+function showAbilityCutin(actor, abilityName, options = {}) {
+  const { isAuto = false, onDone = null } = options;
+  if (!abilityCutinOverlay || !actor || !isNamedGeneral(actor)) {
+    if (typeof onDone === "function") onDone();
+    return false;
+  }
+
+  dismissAbilityCutin(false);
+  cutinState.active = true;
+  cutinState.isAuto = Boolean(isAuto);
+  cutinState.onDone = isAuto ? null : onDone;
+
+  const isEnemy = actor.team === "enemy";
+  abilityCutinOverlay.classList.toggle("is-auto", Boolean(isAuto));
+  abilityCutinOverlay.classList.toggle("is-enemy", isEnemy);
+
+  if (abilityCutinPortrait) {
+    abilityCutinPortrait.innerHTML = renderPortraitHtml(actor, "cutin");
+    attachPortraitFallbacks(abilityCutinPortrait, actor, "cutin");
+  }
+  if (abilityCutinSub) {
+    const parts = [actor.role, unitDisplayName(actor)].filter(Boolean);
+    abilityCutinSub.textContent = parts.join(" ／ ");
+  }
+  if (abilityCutinName) {
+    abilityCutinName.textContent = `「${abilityName || "特技"}」`;
+  }
+
+  // Re-trigger slide animation cleanly
+  abilityCutinOverlay.hidden = false;
+  const band = abilityCutinOverlay.querySelector(".abilityCutinBand");
+  if (band) {
+    band.style.animation = "none";
+    void band.offsetWidth;
+    band.style.animation = "";
+  }
+
+  soundPlay("cutin");
+
+  // Auto mode: short ~950ms banner that does NOT block battle flow
+  if (isAuto) {
+    cutinState.timerId = window.setTimeout(() => {
+      dismissAbilityCutin(false);
+    }, 950);
+    if (typeof onDone === "function") onDone();
+    return true;
+  }
+
+  // Manual mode: 1350ms dramatic cut-in, click/tap/Esc skips immediately
+  cutinState.timerId = window.setTimeout(() => {
+    dismissAbilityCutin(true);
+  }, 1350);
+  return true;
+}
+
+// =========================================================
 // Populate Static & Start-Screen UI from Parsed Markdown
 // =========================================================
 function swatchClassForLegend(entry) {
   if (entry.bridge) return "bridge";
   if (entry.escape) return "escape";
+  switch (entry.visual) {
+    case "snow": return "snow";
+    case "snow_road": return "snow-road";
+    case "snow_hill": return "snow-hill";
+    case "frozen_rice": return "frozen-rice";
+    case "stream": return "stream";
+    case "lake": return "lake";
+    case "bandai": return "bandai";
+    case "marsh": return "marsh";
+    case "moat": return "moat";
+    case "citadel": return "citadel";
+    case "fort": return "fort";
+    case "gate": return "gate";
+    case "slope": return "slope";
+    case "urban": return "urban";
+    default: break;
+  }
   switch (entry.terrain) {
     case "Water": return "river";
     case "Castle": return "castle";
@@ -438,7 +736,7 @@ function populateScenarioUi(scenario) {
       if (startArtImg) {
         const resolvedArt = new URL(scenario.keyart, new URL(`./scenarios/${scenario.slug}.md`, appScriptUrl));
         startArtImg.src = resolvedArt.href;
-        startArtImg.alt = `${scenario.title} イメージ`;
+        startArtImg.alt = `${scenario.title} キーアート`;
         startArtImg.hidden = false;
       }
     } else {
@@ -510,13 +808,13 @@ function populateScenarioUi(scenario) {
     startBattleBtn.textContent = `出陣 — ${scenario.title}`;
   }
 
-  // Build concise terrain legend from the scenario's Markdown legend (deduplicated by swatch+terrain)
+  // Build concise terrain legend from the scenario's Markdown legend
   if (terrainLegendList) {
     const seen = new Set();
     const legendItems = [];
     for (const entry of scenario.legend) {
       const cls = swatchClassForLegend(entry);
-      const key = `${cls}:${entry.terrain}:${entry.bridge}:${entry.escape}`;
+      const key = `${cls}:${entry.terrain}:${entry.visual || ""}:${entry.bridge}:${entry.escape}`;
       if (seen.has(key)) continue;
       seen.add(key);
       legendItems.push(
@@ -706,6 +1004,7 @@ function triggerResolution(outcome, current) {
   const endedInAuto = autoState.enabled || autoState.cancelPending;
   autoState.lastEndedInAuto = endedInAuto;
   stopAutoMode();
+  dismissAbilityCutin(false);
 
   const rules = activeScenario?.rules;
   const maxTurnCap = rules?.surviveTurns > 0 ? rules.surviveTurns : rules?.maxTurns || current.turnNumber;
@@ -1101,7 +1400,29 @@ function easeOutCubic(t) {
 // Zoom & Coordinate Helpers
 // =========================================================
 function terrainColor(tile) {
-  if (tile.bridge) return "#b07b47";
+  if (tile.bridge) {
+    if (tile.visual === "snow_road") return "#9d744d";
+    return "#b07b47";
+  }
+  switch (tile.visual) {
+    case "snow": return "#dce7f2";
+    case "snow_road": return "#b8c5d1";
+    case "snow_hill": return tile.terrain === "Mountain" ? "#8ca2b8" : "#b8cadc";
+    case "frozen_rice": return "#8ea8b6";
+    case "stream": return "#286599";
+    case "lake": return "#15578a";
+    case "bandai":
+      if (tile.terrain === "Mountain") return "#4a5d4f";
+      return tile.height >= 3 ? "#6b7958" : "#788557";
+    case "marsh": return "#4d8568";
+    case "moat": return "#1b5978";
+    case "citadel": return tile.height >= 4 ? "#99a3b3" : "#8893a2";
+    case "fort": return "#807a6e";
+    case "gate": return "#8f7a5e";
+    case "slope": return "#ccb587";
+    case "urban": return "#735c50";
+    default: break;
+  }
   const winter = activeScenario?.theme === "winter";
   switch (tile.terrain) {
     case "Water": return winter ? "#2a6099" : "#236eb8";
@@ -1153,6 +1474,7 @@ function isoLiftPx(tile, zoom) {
 function terrainLabel(tile) {
   if (!tile) return "不明";
   if (tile.bridge) return activeScenario?.rules?.bridgeName || "橋";
+  if (tile.visual && tile.label) return tile.label.replace(/（.*?）/g, "").trim() || tile.label;
   switch (tile.terrain) {
     case "Water": return "川";
     case "Castle": return "城";
@@ -1168,7 +1490,7 @@ function terrainLabel(tile) {
 function tileSummary(tile) {
   if (!tile) return "タイル情報なし";
   if (tile.bridge) return `${activeScenario?.rules?.bridgeName || "橋"} / 移動コスト 1 / 渡河可能`;
-  if (tile.terrain === "Water") return "川 / 進入不可";
+  if (tile.terrain === "Water") return `${terrainLabel(tile)} / 進入不可`;
 
   const traits = [];
   if (tile.escape) {
@@ -1254,6 +1576,9 @@ function currentEnemyUnits(units) {
 function normalizeSnapshot(snapshot) {
   const tiles = snapshot?.map?.tiles ?? [];
   const units = snapshot?.units ?? [];
+  const mapW = snapshot?.map?.width ?? 10;
+  const scenarioTiles = activeScenario?.map?.tiles ?? null;
+  const scenarioUnits = activeScenario?.units ?? [];
   return {
     scenario: snapshot?.scenario ?? uiState.slug,
     viewMode: snapshot?.view_mode ?? state.viewMode,
@@ -1267,21 +1592,30 @@ function normalizeSnapshot(snapshot) {
     eventSeq: snapshot?.event_seq ?? 0,
     turnEvents: snapshot?.turn_events ?? [],
     map: {
-      width: snapshot?.map?.width ?? 10,
+      width: mapW,
       height: snapshot?.map?.height ?? 10,
-      tiles: tiles.map((tile) => ({
-        x: tile.x ?? 0,
-        y: tile.y ?? 0,
-        terrain: tile.terrain ?? "Plain",
-        height: tile.height ?? 0,
-        cover: Boolean(tile.cover),
-        water: Boolean(tile.water),
-        bridge: Boolean(tile.bridge),
-        escape: Boolean(tile.escape),
-      })),
+      tiles: tiles.map((tile) => {
+        const tx = tile.x ?? 0;
+        const ty = tile.y ?? 0;
+        const scTile = scenarioTiles ? scenarioTiles[ty * mapW + tx] : null;
+        return {
+          x: tx,
+          y: ty,
+          terrain: tile.terrain ?? "Plain",
+          height: tile.height ?? 0,
+          cover: Boolean(tile.cover),
+          water: Boolean(tile.water),
+          bridge: Boolean(tile.bridge),
+          escape: Boolean(tile.escape),
+          visual: scTile?.visual || "",
+          label: scTile?.label || "",
+        };
+      }),
     },
     units: units.map((unit) => {
       const team = unit.team ?? (unit.clan === 2 ? "enemy" : "player");
+      const scUnit =
+        scenarioUnits.find((su) => (unit.tag && su.tag === unit.tag) || su.id === unit.id) ?? null;
       return {
         id: unit.id ?? 0,
         clan: unit.clan ?? 0,
@@ -1304,6 +1638,9 @@ function normalizeSnapshot(snapshot) {
         aiRole: activeAiConfig?.unitAiRoles?.[unit.tag] ?? "general",
         basis: unit.basis ?? "",
         note: unit.note ?? "",
+        stats: scUnit?.stats
+          ? { ...scUnit.stats }
+          : { valor: 70, intellect: 60, leadership: 65 },
       };
     }),
     moveTiles: (snapshot?.move_tiles ?? []).map((tile) => `${tile.x},${tile.y}`),
@@ -1667,11 +2004,34 @@ function executeAbility(abilityId, onComplete = null) {
     if (typeof onComplete === "function") onComplete();
   };
 
+  const resolveAbilityName = (events) => {
+    const abEv = (events ?? []).find((e) => e.type === "ability" && e.name);
+    if (abEv) return abEv.name;
+    const fromList = abilitiesForUnit(actor, before).find((a) => a.id === (abilityId | 0));
+    if (fromList && fromList.name) return fromList.name;
+    return "特技";
+  };
+
+  const runPlaybackWithCutin = (afterSnap, events) => {
+    const beginPlay = () => {
+      startEventPlayback(before, afterSnap, events, "player", handleDone);
+      safeRender();
+    };
+    if (isNamedGeneral(actor)) {
+      showAbilityCutin(actor, resolveAbilityName(events), {
+        isAuto: autoState.enabled,
+        onDone: beginPlay,
+      });
+    } else {
+      beginPlay();
+    }
+  };
+
   if (bridge.useWasm && bridge.instance && typeof bridge.instance.use_ability === "function") {
     bridge.instance.use_ability(abilityId | 0);
     const after = snapshotState(getCurrentState());
     if (after.turnEvents && after.turnEvents.length > 0) {
-      startEventPlayback(before, after, after.turnEvents, "player", handleDone);
+      runPlaybackWithCutin(after, after.turnEvents);
     } else {
       addBattleLog(after.message, "system", after.turnNumber);
       soundPlay("ui");
@@ -1744,7 +2104,7 @@ function executeAbility(abilityId, onComplete = null) {
   }
   const after = snapshotState(state);
   if (state.turnEvents.length > 0) {
-    startEventPlayback(before, after, state.turnEvents, "player", handleDone);
+    runPlaybackWithCutin(after, state.turnEvents);
   } else {
     soundPlay("ui");
     if (typeof onComplete === "function") onComplete();
@@ -2025,6 +2385,7 @@ function toggleAutoMode() {
 
 function selectPlayerUnitForAuto(unit) {
   if (!unit) return;
+  uiState.faceCardUnitId = unit.id;
   if (bridge.useWasm && bridge.instance) {
     bridge.instance.click_tile(unit.x, unit.y);
   } else {
@@ -2220,11 +2581,12 @@ function loadScenarioIntoEngine() {
 function startBattle(options = {}) {
   if (!activeScenario) return;
   stopAutoMode();
+  dismissAbilityCutin(false);
   finishPlaybackImmediately(false);
   clearAttackFx();
   uiState.started = true;
   uiState.unitPanelHidden = false;
-  uiState.enemyPanelHidden = true;
+  uiState.faceCardHidden = false;
 
   if (window.srpgSound) {
     window.srpgSound.unlock();
@@ -2237,6 +2599,12 @@ function startBattle(options = {}) {
   resetBattleTracker();
 
   const cur = getCurrentState();
+  const initialUnit =
+    selectedPlayerUnit(cur) ??
+    cur.units.find((u) => u.team === "player" && u.leader && u.hp > 0) ??
+    cur.units.find((u) => u.team === "player" && u.hp > 0) ??
+    null;
+  uiState.faceCardUnitId = initialUnit ? initialUnit.id : null;
   if (!uiState.userAdjustedZoom) {
     setZoom(computeAutoZoom(cur.map.width, cur.map.height), false);
   }
@@ -2259,6 +2627,7 @@ function resetCurrentScenario(options = {}) {
   if (!activeScenario) return;
   const keepAuto = typeof options?.auto === "boolean" ? options.auto : autoState.enabled;
   stopAutoMode();
+  dismissAbilityCutin(false);
   finishPlaybackImmediately(false);
   clearAttackFx();
   soundPlay("ui");
@@ -2268,7 +2637,14 @@ function resetCurrentScenario(options = {}) {
     state = buildLocalStateFromScenario(activeScenario);
   }
   uiState.unitPanelHidden = false;
-  uiState.enemyPanelHidden = true;
+  uiState.faceCardHidden = false;
+  const curAfterReset = getCurrentState();
+  const initialUnit =
+    selectedPlayerUnit(curAfterReset) ??
+    curAfterReset.units.find((u) => u.team === "player" && u.leader && u.hp > 0) ??
+    curAfterReset.units.find((u) => u.team === "player" && u.hp > 0) ??
+    null;
+  uiState.faceCardUnitId = initialUnit ? initialUnit.id : null;
   resetBattleTracker();
   showPhaseBanner(`第1ターン — ${activeScenario.playerArmy}`, keepAuto ? "自動観戦 — 再出陣" : "再出陣", false, 1050);
   if (keepAuto) {
@@ -2281,11 +2657,13 @@ function resetCurrentScenario(options = {}) {
 
 function returnToStartScreen() {
   stopAutoMode();
+  dismissAbilityCutin(false);
   finishPlaybackImmediately(false);
   hideResultOverlay();
   if (helpOverlay) helpOverlay.hidden = true;
   if (startOverlay) startOverlay.hidden = false;
   uiState.started = false;
+  uiState.faceCardUnitId = null;
   soundPlay("ui");
   syncAudioUi();
 }
@@ -2326,6 +2704,8 @@ function handleCanvasPoint(point, current, meta = {}) {
 
     if (meta.longPress && unit.team === "player" && current.phase === "player") {
       uiState.unitPanelHidden = false;
+      uiState.faceCardUnitId = unit.id;
+      uiState.faceCardHidden = false;
       soundPlay("select");
       if (bridge.useWasm && bridge.instance) {
         bridge.instance.click_tile(hitUnit.tileX, hitUnit.tileY);
@@ -2349,7 +2729,8 @@ function handleCanvasPoint(point, current, meta = {}) {
         now - uiState.lastEnemyClickAt < 2500;
       uiState.lastEnemyClickId = unit.id;
       uiState.lastEnemyClickAt = now;
-      uiState.enemyPanelHidden = false;
+      uiState.faceCardUnitId = unit.id;
+      uiState.faceCardHidden = false;
       uiState.unitPanelHidden = false;
 
       if ((meta.longPress || isSecondClick) && canPlayerAttackTarget(current, unit)) {
@@ -2372,6 +2753,8 @@ function handleCanvasPoint(point, current, meta = {}) {
     }
 
     uiState.unitPanelHidden = false;
+    uiState.faceCardUnitId = unit.id;
+    uiState.faceCardHidden = false;
     uiState.lastEnemyClickId = null;
     soundPlay("select");
     if (bridge.useWasm && bridge.instance) {
@@ -2387,7 +2770,11 @@ function handleCanvasPoint(point, current, meta = {}) {
   }
 
   const tile = screenToTile(point, current);
-  if (!tile) return;
+  if (!tile) {
+    uiState.faceCardUnitId = null;
+    safeRender();
+    return;
+  }
 
   uiState.unitPanelHidden = false;
   uiState.lastEnemyClickId = null;
@@ -2398,11 +2785,15 @@ function handleCanvasPoint(point, current, meta = {}) {
     bridge.instance.click_tile(tile.x, tile.y);
     const after = snapshotState(getCurrentState());
     if (wasMoveMode && after.turnEvents && after.turnEvents.some((e) => e.type === "move")) {
+      const movedEv = after.turnEvents.find((e) => e.type === "move");
+      if (movedEv) uiState.faceCardUnitId = movedEv.unit_id;
       startEventPlayback(before, after, after.turnEvents, "player", () => {
         checkAndHandleOutcome();
         safeRender();
       });
     } else {
+      // Clicked an empty tile -> deselect face card
+      uiState.faceCardUnitId = null;
       soundPlay("ui");
       checkAndHandleOutcome();
     }
@@ -2422,6 +2813,7 @@ function handleCanvasPoint(point, current, meta = {}) {
       selected.moved = true;
       state.interactionMode = null;
       state.selectedTile = { x: tile.x, y: tile.y };
+      uiState.faceCardUnitId = selected.id;
       state.message = `${unitDisplayName(selected)} が ${tile.x},${tile.y} へ移動`;
       state.turnEvents = [{ type: "move", unit_id: selected.id, from_x: fx, from_y: fy, to_x: tile.x, to_y: tile.y }];
       const after = snapshotState(state);
@@ -2433,6 +2825,7 @@ function handleCanvasPoint(point, current, meta = {}) {
       return;
     }
   }
+  uiState.faceCardUnitId = null;
   soundPlay("ui");
   state.selectedTile = { x: tile.x, y: tile.y };
   state.message = tileSummary(tile);
@@ -2634,6 +3027,7 @@ function moveCostsForCurrentState(current) {
 function drawIsoTerrainDetail(tile, polygon, pos, zoom, now) {
   const cx = pos.x + pos.size * 0.5;
   const cy = pos.y + pos.size * 0.25;
+  const vis = tile.visual || "";
 
   if (tile.terrain === "Water") {
     const phase = ((now * 0.025 + tile.x * 11 + tile.y * 7) % 18) / 18;
@@ -2644,15 +3038,60 @@ function drawIsoTerrainDetail(tile, polygon, pos, zoom, now) {
     ctx.closePath();
     ctx.clip();
 
-    ctx.strokeStyle = "rgba(186, 230, 253, 0.52)";
-    ctx.lineWidth = Math.max(1, 1.5 * zoom);
-    for (let i = -1; i <= 1; i += 1) {
-      const ox = (phase - 0.5) * pos.size * 0.35;
-      const oy = i * 6.5 * zoom + ox * 0.48;
-      ctx.beginPath();
-      ctx.moveTo(cx - 16 * zoom - ox, cy + oy + 6 * zoom);
-      ctx.quadraticCurveTo(cx - ox, cy + oy - 2 * zoom, cx + 16 * zoom - ox, cy + oy - 6 * zoom);
+    if (vis === "moat") {
+      // Stone-bordered castle moat
+      ctx.strokeStyle = "rgba(203, 213, 225, 0.45)";
+      ctx.lineWidth = Math.max(1.4, 2.2 * zoom);
       ctx.stroke();
+      ctx.strokeStyle = "rgba(125, 211, 252, 0.35)";
+      ctx.lineWidth = Math.max(1, 1.3 * zoom);
+      for (let i = -1; i <= 1; i += 1) {
+        const ox = (phase - 0.5) * pos.size * 0.2;
+        const oy = i * 5.5 * zoom;
+        ctx.beginPath();
+        ctx.moveTo(cx - 12 * zoom + ox, cy + oy);
+        ctx.lineTo(cx + 12 * zoom + ox, cy + oy);
+        ctx.stroke();
+      }
+    } else if (vis === "lake") {
+      // Shimmering Lake Inawashiro shoreline
+      ctx.fillStyle = "rgba(186, 230, 253, 0.14)";
+      ctx.beginPath();
+      ctx.ellipse(cx + (phase - 0.5) * 6 * zoom, cy - 2 * zoom, 15 * zoom, 5 * zoom, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(224, 242, 254, 0.52)";
+      ctx.lineWidth = Math.max(1, 1.4 * zoom);
+      for (let i = -1; i <= 1; i += 1) {
+        const ox = Math.sin(now * 0.002 + tile.x + i) * 4 * zoom;
+        const oy = i * 5.5 * zoom;
+        ctx.beginPath();
+        ctx.moveTo(cx - 14 * zoom + ox, cy + oy);
+        ctx.quadraticCurveTo(cx + ox, cy + oy - 2.5 * zoom, cx + 14 * zoom + ox, cy + oy);
+        ctx.stroke();
+      }
+    } else if (vis === "stream") {
+      // Narrow icy snow-banked stream
+      ctx.strokeStyle = "rgba(226, 238, 248, 0.72)";
+      ctx.lineWidth = Math.max(2, 3.2 * zoom);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(186, 230, 253, 0.65)";
+      ctx.lineWidth = Math.max(1, 1.3 * zoom);
+      const ox = (phase - 0.5) * pos.size * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(cx - 13 * zoom - ox, cy + 4 * zoom);
+      ctx.quadraticCurveTo(cx - ox, cy - 2 * zoom, cx + 13 * zoom - ox, cy - 4 * zoom);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = "rgba(186, 230, 253, 0.52)";
+      ctx.lineWidth = Math.max(1, 1.5 * zoom);
+      for (let i = -1; i <= 1; i += 1) {
+        const ox = (phase - 0.5) * pos.size * 0.35;
+        const oy = i * 6.5 * zoom + ox * 0.48;
+        ctx.beginPath();
+        ctx.moveTo(cx - 16 * zoom - ox, cy + oy + 6 * zoom);
+        ctx.quadraticCurveTo(cx - ox, cy + oy - 2 * zoom, cx + 16 * zoom - ox, cy + oy - 6 * zoom);
+        ctx.stroke();
+      }
     }
     ctx.restore();
     return;
@@ -2681,7 +3120,7 @@ function drawIsoTerrainDetail(tile, polygon, pos, zoom, now) {
     }
 
     const railH = 7 * zoom;
-    ctx.strokeStyle = "#7c4a22";
+    ctx.strokeStyle = vis === "snow_road" ? "#cbd5e1" : "#7c4a22";
     ctx.lineWidth = Math.max(1.5, 2.4 * zoom);
     ctx.beginPath();
     ctx.moveTo(polygon[0].x, polygon[0].y - railH);
@@ -2711,26 +3150,73 @@ function drawIsoTerrainDetail(tile, polygon, pos, zoom, now) {
     ctx.closePath();
     ctx.clip();
 
-    ctx.fillStyle = "rgba(186, 235, 255, 0.28)";
-    ctx.beginPath();
-    ctx.ellipse(cx - 4 * zoom, cy - 1 * zoom, 15 * zoom, 5 * zoom, -0.25, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(38, 92, 48, 0.55)";
-    ctx.lineWidth = Math.max(1, 1.1 * zoom);
-    for (let i = -2; i <= 2; i += 1) {
+    if (vis === "frozen_rice") {
+      ctx.fillStyle = "rgba(226, 240, 250, 0.52)";
       ctx.beginPath();
-      ctx.moveTo(cx - 16 * zoom, cy + i * 4.2 * zoom - 4 * zoom);
-      ctx.lineTo(cx + 16 * zoom, cy + i * 4.2 * zoom + 4 * zoom);
-      ctx.stroke();
+      ctx.ellipse(cx - 2 * zoom, cy - 1 * zoom, 15 * zoom, 5.5 * zoom, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(100, 128, 148, 0.55)";
+      ctx.lineWidth = Math.max(1, 1 * zoom);
+      for (let i = -1; i <= 1; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 14 * zoom, cy + i * 5 * zoom - 3 * zoom);
+        ctx.lineTo(cx + 14 * zoom, cy + i * 5 * zoom + 3 * zoom);
+        ctx.stroke();
+      }
+    } else if (vis === "marsh") {
+      ctx.fillStyle = "rgba(125, 211, 252, 0.28)";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 1 * zoom, 16 * zoom, 6 * zoom, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // Reed tufts
+      ctx.strokeStyle = "rgba(30, 82, 52, 0.78)";
+      ctx.lineWidth = Math.max(1, 1.3 * zoom);
+      for (const ox of [-9, -1, 8]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + ox * zoom, cy + 3 * zoom);
+        ctx.lineTo(cx + (ox - 1.5) * zoom, cy - 4 * zoom);
+        ctx.moveTo(cx + ox * zoom, cy + 3 * zoom);
+        ctx.lineTo(cx + (ox + 1.8) * zoom, cy - 3.5 * zoom);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = "rgba(186, 235, 255, 0.28)";
+      ctx.beginPath();
+      ctx.ellipse(cx - 4 * zoom, cy - 1 * zoom, 15 * zoom, 5 * zoom, -0.25, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(38, 92, 48, 0.55)";
+      ctx.lineWidth = Math.max(1, 1.1 * zoom);
+      for (let i = -2; i <= 2; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 16 * zoom, cy + i * 4.2 * zoom - 4 * zoom);
+        ctx.lineTo(cx + 16 * zoom, cy + i * 4.2 * zoom + 4 * zoom);
+        ctx.stroke();
+      }
     }
     ctx.restore();
     return;
   }
 
+  if (vis === "snow" && tile.terrain === "Plain") {
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.65)";
+    ctx.lineWidth = Math.max(1, 1.4 * zoom);
+    ctx.beginPath();
+    ctx.moveTo(cx - 12 * zoom, cy + 1 * zoom);
+    ctx.quadraticCurveTo(cx, cy - 3 * zoom, cx + 11 * zoom, cy + 2 * zoom);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   if (tile.terrain === "Terrace") {
     ctx.save();
-    ctx.strokeStyle = "rgba(52, 46, 22, 0.42)";
+    ctx.strokeStyle =
+      vis === "snow_hill"
+        ? "rgba(241, 245, 249, 0.72)"
+        : vis === "bandai"
+          ? "rgba(42, 56, 44, 0.55)"
+          : "rgba(52, 46, 22, 0.42)";
     ctx.lineWidth = Math.max(1, 1.3 * zoom);
     for (let i = -1; i <= 1; i += 1) {
       ctx.beginPath();
@@ -2743,91 +3229,231 @@ function drawIsoTerrainDetail(tile, polygon, pos, zoom, now) {
 
   if (tile.terrain === "Road") {
     ctx.save();
-    ctx.strokeStyle = "rgba(255, 241, 206, 0.36)";
-    ctx.lineWidth = Math.max(1, 2 * zoom);
-    ctx.beginPath();
-    ctx.moveTo(cx - 10 * zoom, cy - 4 * zoom);
-    ctx.lineTo(cx + 10 * zoom, cy + 4 * zoom);
-    ctx.stroke();
+    if (vis === "slope") {
+      // Stepped stone uphill treads
+      ctx.strokeStyle = "rgba(92, 74, 46, 0.58)";
+      ctx.lineWidth = Math.max(1, 1.6 * zoom);
+      for (let i = -2; i <= 2; i += 1) {
+        const yOff = i * 3.6 * zoom;
+        ctx.beginPath();
+        ctx.moveTo(cx - 11 * zoom, cy + yOff - 2 * zoom);
+        ctx.lineTo(cx + 11 * zoom, cy + yOff + 2 * zoom);
+        ctx.stroke();
+      }
+    } else if (vis === "snow_road") {
+      ctx.strokeStyle = "rgba(100, 116, 139, 0.42)";
+      ctx.lineWidth = Math.max(1, 1.5 * zoom);
+      ctx.beginPath();
+      ctx.moveTo(cx - 9 * zoom, cy - 4 * zoom);
+      ctx.lineTo(cx + 9 * zoom, cy + 3 * zoom);
+      ctx.moveTo(cx - 6 * zoom, cy - 1 * zoom);
+      ctx.lineTo(cx + 11 * zoom, cy + 5 * zoom);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = "rgba(255, 241, 206, 0.36)";
+      ctx.lineWidth = Math.max(1, 2 * zoom);
+      ctx.beginPath();
+      ctx.moveTo(cx - 10 * zoom, cy - 4 * zoom);
+      ctx.lineTo(cx + 10 * zoom, cy + 4 * zoom);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
   if (tile.terrain === "Castle") {
     ctx.save();
-    const bw = 18 * zoom;
-    const bh = 11 * zoom;
-    ctx.fillStyle = "#e8e3d5";
-    ctx.fillRect(cx - bw * 0.5, cy - bh * 1.15, bw, bh);
-    ctx.strokeStyle = "#334155";
-    ctx.lineWidth = Math.max(1, 1 * zoom);
-    ctx.strokeRect(cx - bw * 0.5, cy - bh * 1.15, bw, bh);
-    ctx.fillStyle = "#263140";
-    ctx.beginPath();
-    ctx.moveTo(cx - bw * 0.72, cy - bh * 1.1);
-    ctx.lineTo(cx + bw * 0.72, cy - bh * 1.1);
-    ctx.lineTo(cx + bw * 0.48, cy - bh * 1.55);
-    ctx.lineTo(cx - bw * 0.48, cy - bh * 1.55);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#f4efe2";
-    ctx.fillRect(cx - bw * 0.32, cy - bh * 2.15, bw * 0.64, bh * 0.65);
-    ctx.fillStyle = "#1e293b";
-    ctx.beginPath();
-    ctx.moveTo(cx - bw * 0.52, cy - bh * 2.1);
-    ctx.lineTo(cx + bw * 0.52, cy - bh * 2.1);
-    ctx.lineTo(cx, cy - bh * 2.75);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#facc15";
-    ctx.fillRect(cx - 1.5 * zoom, cy - bh * 2.85, 3 * zoom, 2 * zoom);
+    if (vis === "gate") {
+      // Castle gatehouse (大手門)
+      const gw = 20 * zoom;
+      const gh = 11 * zoom;
+      ctx.fillStyle = "#4b3828";
+      ctx.fillRect(cx - gw * 0.5, cy - gh, gw * 0.25, gh);
+      ctx.fillRect(cx + gw * 0.25, cy - gh, gw * 0.25, gh);
+      ctx.fillStyle = "#e8e2d3";
+      ctx.fillRect(cx - gw * 0.56, cy - gh * 1.45, gw * 1.12, gh * 0.55);
+      ctx.fillStyle = "#1f2937";
+      ctx.beginPath();
+      ctx.moveTo(cx - gw * 0.72, cy - gh * 1.4);
+      ctx.lineTo(cx + gw * 0.72, cy - gh * 1.4);
+      ctx.lineTo(cx + gw * 0.52, cy - gh * 1.9);
+      ctx.lineTo(cx - gw * 0.52, cy - gh * 1.9);
+      ctx.closePath();
+      ctx.fill();
+    } else if (vis === "fort") {
+      // Compact wooden/snow hill fort (小城・山城砦)
+      const fw = 16 * zoom;
+      const fh = 9 * zoom;
+      ctx.fillStyle = "#6e553b";
+      ctx.fillRect(cx - fw * 0.5, cy - fh * 1.05, fw, fh);
+      ctx.strokeStyle = "#3b2c1d";
+      ctx.lineWidth = Math.max(1, 1 * zoom);
+      ctx.strokeRect(cx - fw * 0.5, cy - fh * 1.05, fw, fh);
+      ctx.fillStyle = activeScenario?.theme === "winter" ? "#e2e8f0" : "#334155";
+      ctx.beginPath();
+      ctx.moveTo(cx - fw * 0.68, cy - fh * 1.0);
+      ctx.lineTo(cx + fw * 0.68, cy - fh * 1.0);
+      ctx.lineTo(cx, cy - fh * 1.85);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Standard or grand citadel keep (extra tier when height >= 4)
+      const isGrand = vis === "citadel" && tile.height >= 4;
+      const bw = (isGrand ? 21 : 18) * zoom;
+      const bh = (isGrand ? 12 : 11) * zoom;
+      ctx.fillStyle = "#e8e3d5";
+      ctx.fillRect(cx - bw * 0.5, cy - bh * 1.15, bw, bh);
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = Math.max(1, 1 * zoom);
+      ctx.strokeRect(cx - bw * 0.5, cy - bh * 1.15, bw, bh);
+      ctx.fillStyle = "#263140";
+      ctx.beginPath();
+      ctx.moveTo(cx - bw * 0.72, cy - bh * 1.1);
+      ctx.lineTo(cx + bw * 0.72, cy - bh * 1.1);
+      ctx.lineTo(cx + bw * 0.48, cy - bh * 1.55);
+      ctx.lineTo(cx - bw * 0.48, cy - bh * 1.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#f4efe2";
+      ctx.fillRect(cx - bw * 0.34, cy - bh * 2.15, bw * 0.68, bh * 0.65);
+      ctx.fillStyle = "#1e293b";
+      ctx.beginPath();
+      ctx.moveTo(cx - bw * 0.54, cy - bh * 2.1);
+      ctx.lineTo(cx + bw * 0.54, cy - bh * 2.1);
+      ctx.lineTo(cx, cy - bh * 2.75);
+      ctx.closePath();
+      ctx.fill();
+      if (isGrand) {
+        ctx.fillStyle = "#f8f4e8";
+        ctx.fillRect(cx - bw * 0.22, cy - bh * 2.95, bw * 0.44, bh * 0.5);
+        ctx.fillStyle = "#0f172a";
+        ctx.beginPath();
+        ctx.moveTo(cx - bw * 0.38, cy - bh * 2.9);
+        ctx.lineTo(cx + bw * 0.38, cy - bh * 2.9);
+        ctx.lineTo(cx, cy - bh * 3.45);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(cx - 2.6 * zoom, cy - bh * 3.55, 5.2 * zoom, 2.4 * zoom);
+      } else {
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(cx - 1.5 * zoom, cy - bh * 2.85, 3 * zoom, 2 * zoom);
+      }
+    }
     ctx.restore();
   } else if (tile.terrain === "Mountain") {
     ctx.save();
-    ctx.fillStyle = "#485846";
+    const isBandai = vis === "bandai";
+    const isSnow = vis === "snow_hill" || activeScenario?.theme === "winter";
+    const peakH = (isBandai ? 22 : 16) * zoom;
+    ctx.fillStyle = isSnow ? "#6e8398" : isBandai ? "#3e4e44" : "#485846";
     ctx.beginPath();
-    ctx.moveTo(cx - 14 * zoom, cy + 3 * zoom);
-    ctx.lineTo(cx - 2 * zoom, cy - 16 * zoom);
-    ctx.lineTo(cx + 12 * zoom, cy + 3 * zoom);
+    ctx.moveTo(cx - 15 * zoom, cy + 3 * zoom);
+    ctx.lineTo(cx - 2 * zoom, cy - peakH);
+    ctx.lineTo(cx + 13 * zoom, cy + 3 * zoom);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = activeScenario?.theme === "winter" ? "#e2e8f0" : "#6c7f68";
+    if (isBandai) {
+      // Secondary volcanic crag
+      ctx.fillStyle = "#526658";
+      ctx.beginPath();
+      ctx.moveTo(cx - 1 * zoom, cy + 3 * zoom);
+      ctx.lineTo(cx + 8 * zoom, cy - 13 * zoom);
+      ctx.lineTo(cx + 16 * zoom, cy + 3 * zoom);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = isSnow ? "#f1f5f9" : isBandai ? "#839686" : "#6c7f68";
     ctx.beginPath();
-    ctx.moveTo(cx - 6 * zoom, cy - 9 * zoom);
-    ctx.lineTo(cx - 2 * zoom, cy - 16 * zoom);
-    ctx.lineTo(cx + 3 * zoom, cy - 8 * zoom);
+    ctx.moveTo(cx - 6.5 * zoom, cy - peakH * 0.55);
+    ctx.lineTo(cx - 2 * zoom, cy - peakH);
+    ctx.lineTo(cx + 3.5 * zoom, cy - peakH * 0.5);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   } else if (tile.terrain === "Town") {
     ctx.save();
-    ctx.fillStyle = "#5c3b28";
-    ctx.beginPath();
-    ctx.moveTo(cx - 10 * zoom, cy);
-    ctx.lineTo(cx - 2 * zoom, cy - 6 * zoom);
-    ctx.lineTo(cx + 6 * zoom, cy);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#754c33";
-    ctx.beginPath();
-    ctx.moveTo(cx - 1 * zoom, cy + 4 * zoom);
-    ctx.lineTo(cx + 7 * zoom, cy - 2 * zoom);
-    ctx.lineTo(cx + 14 * zoom, cy + 4 * zoom);
-    ctx.closePath();
-    ctx.fill();
+    if (vis === "urban") {
+      // Dense Osaka dark-kawara town blocks
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(cx - 12 * zoom, cy - 6 * zoom, 11 * zoom, 7 * zoom);
+      ctx.fillStyle = "#475569";
+      ctx.fillRect(cx + 1 * zoom, cy - 2 * zoom, 11 * zoom, 7 * zoom);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(cx - 11 * zoom, cy - 1 * zoom, 9 * zoom, 2 * zoom);
+      ctx.fillRect(cx + 2 * zoom, cy + 3 * zoom, 9 * zoom, 2 * zoom);
+    } else if (vis === "snow") {
+      // Snow-roofed winter cottages
+      ctx.fillStyle = "#64748b";
+      ctx.beginPath();
+      ctx.moveTo(cx - 10 * zoom, cy);
+      ctx.lineTo(cx - 2 * zoom, cy - 6 * zoom);
+      ctx.lineTo(cx + 6 * zoom, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#f1f5f9";
+      ctx.beginPath();
+      ctx.moveTo(cx - 8 * zoom, cy - 1 * zoom);
+      ctx.lineTo(cx - 2 * zoom, cy - 6 * zoom);
+      ctx.lineTo(cx + 4 * zoom, cy - 1 * zoom);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#e2e8f0";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 4 * zoom);
+      ctx.lineTo(cx + 7 * zoom, cy - 2 * zoom);
+      ctx.lineTo(cx + 14 * zoom, cy + 4 * zoom);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = "#5c3b28";
+      ctx.beginPath();
+      ctx.moveTo(cx - 10 * zoom, cy);
+      ctx.lineTo(cx - 2 * zoom, cy - 6 * zoom);
+      ctx.lineTo(cx + 6 * zoom, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#754c33";
+      ctx.beginPath();
+      ctx.moveTo(cx - 1 * zoom, cy + 4 * zoom);
+      ctx.lineTo(cx + 7 * zoom, cy - 2 * zoom);
+      ctx.lineTo(cx + 14 * zoom, cy + 4 * zoom);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.restore();
   } else if (tile.cover && tile.terrain !== "Water") {
     ctx.save();
-    const isMaple = activeScenario?.theme === "autumn" && (tile.x + tile.y) % 2 === 0;
-    ctx.fillStyle = "#4a3420";
-    ctx.fillRect(cx + 9 * zoom, cy - 5 * zoom, 2.2 * zoom, 6 * zoom);
-    ctx.fillStyle = isMaple ? "#d97706" : "#2f6b3c";
-    ctx.beginPath();
-    ctx.arc(cx + 10 * zoom, cy - 7 * zoom, 5.5 * zoom, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = isMaple ? "#f59e0b" : "#3f874f";
-    ctx.beginPath();
-    ctx.arc(cx + 8 * zoom, cy - 9 * zoom, 3.6 * zoom, 0, Math.PI * 2);
-    ctx.fill();
+    if (vis === "snow" || vis === "snow_hill") {
+      // Frosted snow-dusted pine tree
+      ctx.fillStyle = "#3f3224";
+      ctx.fillRect(cx + 8.5 * zoom, cy - 4 * zoom, 2.2 * zoom, 5.5 * zoom);
+      ctx.fillStyle = "#1f4f3c";
+      ctx.beginPath();
+      ctx.moveTo(cx + 3 * zoom, cy - 3 * zoom);
+      ctx.lineTo(cx + 9.5 * zoom, cy - 14 * zoom);
+      ctx.lineTo(cx + 16 * zoom, cy - 3 * zoom);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#f1f5f9";
+      ctx.beginPath();
+      ctx.moveTo(cx + 6 * zoom, cy - 9 * zoom);
+      ctx.lineTo(cx + 9.5 * zoom, cy - 14 * zoom);
+      ctx.lineTo(cx + 13 * zoom, cy - 9 * zoom);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      const isMaple = activeScenario?.theme === "autumn" && (tile.x + tile.y) % 2 === 0;
+      ctx.fillStyle = "#4a3420";
+      ctx.fillRect(cx + 9 * zoom, cy - 5 * zoom, 2.2 * zoom, 6 * zoom);
+      ctx.fillStyle = isMaple ? "#d97706" : "#2f6b3c";
+      ctx.beginPath();
+      ctx.arc(cx + 10 * zoom, cy - 7 * zoom, 5.5 * zoom, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = isMaple ? "#f59e0b" : "#3f874f";
+      ctx.beginPath();
+      ctx.arc(cx + 8 * zoom, cy - 9 * zoom, 3.6 * zoom, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -2974,9 +3600,15 @@ function drawTopDownTile(tile, pos, current, overlays, now) {
   ctx.fillStyle = base;
   ctx.fillRect(pos.x, pos.y, size, size);
 
+  const vis = tile.visual || "";
   if (tile.terrain === "Water") {
     const wave = ((now * 0.02 + tile.x * 9) % 12) / 12;
-    ctx.strokeStyle = "rgba(186, 230, 253, 0.45)";
+    if (vis === "moat") {
+      ctx.strokeStyle = "rgba(203, 213, 225, 0.5)";
+      ctx.lineWidth = Math.max(1.5, 2.2 * zoom);
+      ctx.strokeRect(pos.x + 1.5, pos.y + 1.5, size - 3, size - 3);
+    }
+    ctx.strokeStyle = vis === "lake" ? "rgba(224, 242, 254, 0.55)" : "rgba(186, 230, 253, 0.45)";
     ctx.lineWidth = Math.max(1, 1.4 * zoom);
     ctx.beginPath();
     ctx.moveTo(pos.x + 6 * zoom, pos.y + (16 + wave * 12) * zoom);
@@ -2996,13 +3628,43 @@ function drawTopDownTile(tile, pos, current, overlays, now) {
     ctx.fillRect(pos.x, pos.y, 4 * zoom, size);
     ctx.fillRect(pos.x + size - 4 * zoom, pos.y, 4 * zoom, size);
   } else if (tile.terrain === "RiceField") {
-    ctx.fillStyle = "rgba(186, 235, 255, 0.22)";
+    ctx.fillStyle = vis === "frozen_rice" ? "rgba(226, 240, 250, 0.45)" : "rgba(186, 235, 255, 0.22)";
     ctx.fillRect(pos.x + 4 * zoom, pos.y + 4 * zoom, size - 8 * zoom, size * 0.42);
   } else if (tile.terrain === "Castle") {
-    ctx.fillStyle = "#e8e3d5";
-    ctx.fillRect(pos.x + size * 0.22, pos.y + size * 0.22, size * 0.56, size * 0.56);
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(pos.x + size * 0.3, pos.y + size * 0.3, size * 0.4, size * 0.4);
+    if (vis === "gate") {
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(pos.x + size * 0.14, pos.y + size * 0.3, size * 0.72, size * 0.4);
+      ctx.fillStyle = "#e8e3d5";
+      ctx.fillRect(pos.x + size * 0.24, pos.y + size * 0.36, size * 0.52, size * 0.28);
+    } else if (vis === "fort") {
+      ctx.fillStyle = "#6e553b";
+      ctx.fillRect(pos.x + size * 0.22, pos.y + size * 0.22, size * 0.56, size * 0.56);
+      ctx.fillStyle = activeScenario?.theme === "winter" ? "#e2e8f0" : "#334155";
+      ctx.fillRect(pos.x + size * 0.32, pos.y + size * 0.32, size * 0.36, size * 0.36);
+    } else {
+      ctx.fillStyle = "#e8e3d5";
+      ctx.fillRect(pos.x + size * 0.2, pos.y + size * 0.2, size * 0.6, size * 0.6);
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(pos.x + size * 0.3, pos.y + size * 0.3, size * 0.4, size * 0.4);
+      if (vis === "citadel" && tile.height >= 4) {
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(pos.x + size * 0.43, pos.y + size * 0.43, size * 0.14, size * 0.14);
+      }
+    }
+  } else if (vis === "slope") {
+    ctx.strokeStyle = "rgba(92, 74, 46, 0.55)";
+    ctx.lineWidth = Math.max(1, 1.5 * zoom);
+    for (let i = 1; i <= 4; i += 1) {
+      const py = pos.y + (size * i) / 5;
+      ctx.beginPath();
+      ctx.moveTo(pos.x + 6 * zoom, py);
+      ctx.lineTo(pos.x + size - 6 * zoom, py);
+      ctx.stroke();
+    }
+  } else if (vis === "urban") {
+    ctx.fillStyle = "#334155";
+    ctx.fillRect(pos.x + size * 0.14, pos.y + size * 0.16, size * 0.34, size * 0.32);
+    ctx.fillRect(pos.x + size * 0.52, pos.y + size * 0.46, size * 0.34, size * 0.34);
   }
 
   if (tile.escape) {
@@ -3472,6 +4134,21 @@ function render(now = performance.now()) {
 
   drawVisualFx(now);
 
+  // Subtle ambient winter snowfall for snowy scenarios (e.g., Osaki)
+  if (activeScenario?.theme === "winter") {
+    ctx.save();
+    ctx.fillStyle = "rgba(241, 248, 255, 0.55)";
+    for (let i = 0; i < 36; i += 1) {
+      const sx = ((i * 97.3 + now * 0.018 * (0.6 + (i % 3) * 0.25) + Math.sin(now * 0.0014 + i) * 18) % (width + 20)) - 10;
+      const sy = ((i * 61.7 + now * 0.032 * (0.7 + (i % 4) * 0.18)) % (height + 20)) - 10;
+      const r = 1.1 + (i % 3) * 0.65;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
   ctx.font = `700 11px "GenInterfaceJP", sans-serif`;
   ctx.textAlign = "center";
@@ -3505,7 +4182,8 @@ function drawHud(current) {
     mo: Boolean(current.moveOrigin),
     msg: current.message,
     upH: uiState.unitPanelHidden,
-    epH: uiState.enemyPanelHidden,
+    fcId: uiState.faceCardUnitId,
+    fcH: uiState.faceCardHidden,
     res: battleTracker.resolved,
     rd: battleTracker.recordDefendedTurns,
     auto: autoState.enabled,
@@ -3631,7 +4309,115 @@ function drawHud(current) {
 
   renderAbilityList(current);
   renderUnitPanel(current);
+  renderFaceCard(current);
   updateAttackFxOverlay();
+}
+
+function renderStatBarHtml(label, value, kind) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  return `
+    <div class="statRow">
+      <span class="statLabel">${escapeHtml(label)}</span>
+      <div class="statBarTrack"><div class="statBarFill stat-${kind}" style="width:${pct}%"></div></div>
+      <span class="statVal">${pct}</span>
+    </div>
+  `;
+}
+
+function renderFaceCard(current) {
+  if (!unitFaceCard || !faceCardBody || !faceCardActions) return;
+  if (!uiState.started || uiState.faceCardHidden || uiState.faceCardUnitId == null) {
+    unitFaceCard.hidden = true;
+    return;
+  }
+
+  const unit = current.units.find((u) => u.id === uiState.faceCardUnitId && u.hp > 0) ?? null;
+  if (!unit) {
+    unitFaceCard.hidden = true;
+    return;
+  }
+
+  const isEnemy = unit.team === "enemy";
+  const named = isNamedGeneral(unit);
+  const hpPct = Math.max(0, Math.min(100, (unit.hp / Math.max(1, unit.maxHp)) * 100));
+  const stats = unit.stats || { valor: 70, intellect: 60, leadership: 65 };
+  const attackable = isEnemy && canPlayerAttackTarget(current, unit);
+
+  unitFaceCard.hidden = false;
+  unitFaceCard.classList.toggle("is-enemy", isEnemy);
+  unitFaceCard.classList.toggle("is-player", !isEnemy);
+  unitFaceCard.classList.toggle("is-named", named);
+  unitFaceCard.classList.toggle("is-troop", !named);
+
+  if (faceCardFaction) {
+    const army = isEnemy ? activeScenario?.enemyArmy || "敵軍" : activeScenario?.playerArmy || "自軍";
+    faceCardFaction.textContent = named
+      ? `${army}・武将`
+      : `${army}・${jobLabel(unit.job)}部隊`;
+  }
+
+  const statusText = isEnemy
+    ? attackable
+      ? "射程内・攻撃可"
+      : "射程外"
+    : unit.moved && unit.acted
+      ? "行動済"
+      : unit.moved
+        ? "移動済・攻撃可"
+        : unit.acted
+          ? "攻撃済・移動可"
+          : "行動可能";
+
+  const portraitHtml = named ? renderPortraitHtml(unit, "card") : "";
+  const troopBadgeHtml = !named
+    ? `<span class="troopJobPill" title="兵種">${escapeHtml(jobLabel(unit.job))}</span>`
+    : "";
+
+  const uTile = tileAt(current.map, unit.x, unit.y);
+
+  faceCardBody.innerHTML = `
+    <div class="faceCardTop${named ? " has-portrait" : " no-portrait"}">
+      ${portraitHtml}
+      <div class="faceCardIdentity">
+        <div class="unitHeaderLine">
+          ${troopBadgeHtml}
+          <span class="unitInfoTitle">${escapeHtml(unitDisplayName(unit))}</span>
+          ${basisBadgeHtml(unit.basis)}
+        </div>
+        ${unit.role ? `<div class="unitRoleTag">${escapeHtml(unit.role)}</div>` : ""}
+        <div class="faceCardMetaLine">${escapeHtml(jobLabel(unit.job))} ／ 攻${unit.atk} ・ 移${unit.mov} ・ 射${unit.range}</div>
+        <div class="unitHpWrap faceCardHp">
+          <div class="unitHpBar"><div class="unitHpFill${hpPct <= 35 ? " low" : ""}" style="width:${hpPct}%"></div></div>
+          <div class="unitHpLabel">兵力 ${unit.hp} / ${unit.maxHp}（${statusText}）</div>
+        </div>
+      </div>
+    </div>
+    <div class="faceCardStats" title="能力値はゲーム上の表示専用数値">
+      ${renderStatBarHtml("武力", stats.valor, "valor")}
+      ${renderStatBarHtml("知力", stats.intellect, "intellect")}
+      ${renderStatBarHtml("統率", stats.leadership, "leadership")}
+    </div>
+    ${isEnemy && uTile ? `<div class="unitTerrainBox">地形 (${unit.x},${unit.y}): ${escapeHtml(tileSummary(uTile))}</div>` : ""}
+    ${unit.note ? `<div class="unitNote faceCardNote">${escapeHtml(unit.note)}</div>` : ""}
+  `;
+
+  if (named) {
+    attachPortraitFallbacks(faceCardBody, unit, "card");
+  }
+
+  faceCardActions.innerHTML = "";
+  if (isEnemy) {
+    const atkBtn = document.createElement("button");
+    atkBtn.type = "button";
+    atkBtn.className = attackable ? "danger" : "secondary";
+    atkBtn.textContent = attackable ? "攻撃する" : "射程外";
+    atkBtn.disabled = battleTracker.resolved || autoState.enabled || !attackable;
+    atkBtn.addEventListener("click", () => executePlayerAttack(unit));
+    faceCardActions.appendChild(atkBtn);
+    faceCardActions.hidden = false;
+  } else {
+    faceCardActions.hidden = true;
+  }
 }
 
 function renderUnitPanel(current) {
@@ -3639,13 +4425,7 @@ function renderUnitPanel(current) {
   if (unitCardOverlay) unitCardOverlay.hidden = Boolean(uiState.unitPanelHidden);
 
   const tile = selectedTileAt(current);
-  const tileUnit = selectedTileUnit(current);
   const playerUnit = selectedPlayerUnit(current);
-  const enemyUnit = tileUnit && tileUnit.team === "enemy" ? tileUnit : null;
-
-  if (enemyUnitCardOverlay) {
-    enemyUnitCardOverlay.hidden = !enemyUnit || uiState.enemyPanelHidden;
-  }
 
   if (!uiState.unitPanelHidden) {
     unitInfo.innerHTML = "";
@@ -3656,8 +4436,13 @@ function renderUnitPanel(current) {
       empty.className = "unitInfoBody";
       empty.textContent = "自軍ユニットをタップしてください";
       unitInfo.appendChild(empty);
+      if (tile) {
+        const selTerrain = document.createElement("div");
+        selTerrain.className = "unitTerrainBox";
+        selTerrain.textContent = `地形 (${tile.x},${tile.y}): ${tileSummary(tile)}`;
+        unitInfo.appendChild(selTerrain);
+      }
     } else {
-      const hpPct = Math.max(0, Math.min(100, (playerUnit.hp / playerUnit.maxHp) * 100));
       const pTile = tileAt(current.map, playerUnit.x, playerUnit.y);
       const statusText =
         playerUnit.moved && playerUnit.acted
@@ -3671,16 +4456,9 @@ function renderUnitPanel(current) {
       unitInfo.innerHTML = `
         <div class="unitHeaderLine">
           <span class="unitInfoTitle">${escapeHtml(unitDisplayName(playerUnit))}</span>
-          ${basisBadgeHtml(playerUnit.basis)}
-        </div>
-        ${playerUnit.role ? `<div class="unitRoleTag">${escapeHtml(playerUnit.role)}</div>` : ""}
-        <div class="unitInfoBody">兵種: ${escapeHtml(jobLabel(playerUnit.job))} / 攻撃 ${playerUnit.atk} / 移動 ${playerUnit.mov} / 射程 ${playerUnit.range}</div>
-        <div class="unitHpWrap">
-          <div class="unitHpBar"><div class="unitHpFill${hpPct <= 35 ? " low" : ""}" style="width:${hpPct}%"></div></div>
-          <div class="unitHpLabel">兵力 ${playerUnit.hp} / ${playerUnit.maxHp}（${statusText}）</div>
+          <span class="unitQuickStatus">${statusText}</span>
         </div>
         <div class="unitTerrainBox">現在地 (${playerUnit.x},${playerUnit.y}): ${escapeHtml(tileSummary(pTile))}</div>
-        ${playerUnit.note ? `<div class="unitNote">${escapeHtml(playerUnit.note)}</div>` : ""}
       `;
 
       if (tile && (!pTile || tile.x !== pTile.x || tile.y !== pTile.y)) {
@@ -3707,35 +4485,6 @@ function renderUnitPanel(current) {
       cancelBtn.addEventListener("click", cancelMoveSelection);
       unitActions.appendChild(cancelBtn);
     }
-  }
-
-  if (enemyUnit && enemyUnitInfo && enemyUnitActions && !uiState.enemyPanelHidden) {
-    const hpPct = Math.max(0, Math.min(100, (enemyUnit.hp / enemyUnit.maxHp) * 100));
-    const attackable = canPlayerAttackTarget(current, enemyUnit);
-    const eTile = tileAt(current.map, enemyUnit.x, enemyUnit.y);
-    enemyUnitInfo.innerHTML = `
-      <div class="unitHeaderLine">
-        <span class="unitInfoTitle">${escapeHtml(unitDisplayName(enemyUnit))}</span>
-        ${basisBadgeHtml(enemyUnit.basis)}
-      </div>
-      ${enemyUnit.role ? `<div class="unitRoleTag">${escapeHtml(enemyUnit.role)}</div>` : ""}
-      <div class="unitInfoBody">兵種: ${escapeHtml(jobLabel(enemyUnit.job))} / 攻撃 ${enemyUnit.atk} / 移動 ${enemyUnit.mov} / 射程 ${enemyUnit.range}</div>
-      <div class="unitHpWrap">
-        <div class="unitHpBar"><div class="unitHpFill" style="width:${hpPct}%"></div></div>
-        <div class="unitHpLabel">兵力 ${enemyUnit.hp} / ${enemyUnit.maxHp}（${attackable ? "射程内・攻撃可" : "射程外"}）</div>
-      </div>
-      <div class="unitTerrainBox">地形 (${enemyUnit.x},${enemyUnit.y}): ${escapeHtml(tileSummary(eTile))}</div>
-      ${enemyUnit.note ? `<div class="unitNote">${escapeHtml(enemyUnit.note)}</div>` : ""}
-    `;
-
-    enemyUnitActions.innerHTML = "";
-    const atkBtn = document.createElement("button");
-    atkBtn.type = "button";
-    atkBtn.className = attackable ? "danger" : "secondary";
-    atkBtn.textContent = attackable ? "攻撃する" : "射程外";
-    atkBtn.disabled = battleTracker.resolved || autoState.enabled || !attackable;
-    atkBtn.addEventListener("click", () => executePlayerAttack(enemyUnit));
-    enemyUnitActions.appendChild(atkBtn);
   }
 }
 
@@ -3894,12 +4643,18 @@ if (unitPanelClose) {
     safeRender();
   });
 }
-if (enemyUnitPanelClose) {
-  enemyUnitPanelClose.addEventListener("click", () => {
-    uiState.enemyPanelHidden = true;
+if (faceCardClose) {
+  faceCardClose.addEventListener("click", () => {
+    uiState.faceCardHidden = true;
     soundPlay("ui");
     lastHudSignature = "";
     safeRender();
+  });
+}
+if (abilityCutinOverlay) {
+  abilityCutinOverlay.addEventListener("click", (event) => {
+    event.stopPropagation();
+    dismissAbilityCutin(true);
   });
 }
 
@@ -3949,6 +4704,11 @@ window.addEventListener("resize", () => {
 
 window.addEventListener("keydown", (event) => {
   if (!eventInsideSrpg(event)) return;
+  if (cutinState.active && (event.key === "Escape" || event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    dismissAbilityCutin(true);
+    return;
+  }
   if (event.key === "Escape") {
     if (helpOverlay && !helpOverlay.hidden) {
       helpOverlay.hidden = true;
